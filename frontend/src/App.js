@@ -1,24 +1,31 @@
-import logo from './logo.svg';
 import './App.css';
+import 'react-calendar/dist/Calendar.css';
+import { Routes, Route } from 'react-router-dom';
+import Landing from './components/Landing';
+//import Login from './components/Login';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Calendar from 'react-calendar';
+import React from 'react';
+
+function CalendarView(){
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow flex items-center justify-center p-8">
+        <Calendar />
+      </main>
+      <Footer />
+    </div>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/app" element={<CalendarView />} />
+    </Routes>
   );
 }
 
