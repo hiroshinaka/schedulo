@@ -1,31 +1,47 @@
 import './App.css';
-import 'react-calendar/dist/Calendar.css';
-import { Routes, Route } from 'react-router-dom';
-import Landing from './components/Landing';
-//import Login from './components/Login';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import AuthProvider from './context/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Calendar from 'react-calendar';
-import React from 'react';
+import Landing from './components/Landing';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import CalendarPage from './components/CalendarPage';
+import useAuth from './hooks/useAuth';
+import { Navigate } from 'react-router-dom';
 
-function CalendarView(){
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-grow flex items-center justify-center p-8">
-        <Calendar />
-      </main>
-      <Footer />
-    </div>
-  );
+function RequireAuth({ children }) {
+  const { loggedIn } = useAuth();
+  if (!loggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
 }
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/app" element={<CalendarView />} />
-    </Routes>
+    <BrowserRouter>
+      <AuthProvider>
+        <div className="App min-h-screen flex flex-col">
+          <Header />
+
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route
+                path="/app"
+                element={<RequireAuth><CalendarPage /></RequireAuth>}
+              />
+              {/* Additional routes can be added here */}
+            </Routes>
+          </main>
+
+          <Footer />
+        </div>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

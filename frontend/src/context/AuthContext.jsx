@@ -51,9 +51,13 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data && data.ok && data.user) {
-        setUser(data.user);
-        return { ok: true, user: data.user };
+      if (data && data.ok) {
+        // backend doesn't return the user object on login; refresh session to get user
+        const currentUser = await refresh();
+        if (currentUser) {
+          return { ok: true, user: currentUser };
+        }
+        return { ok: true };
       }
       return data || { ok: false };
     } catch (err) {

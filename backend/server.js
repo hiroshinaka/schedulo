@@ -4,7 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const path = require('path');
-
+const apiRouter = require('./routes/api.js');
 //Database connections
 const {database} = include('database/sqlConnections.js');
 const dbUtils = include('database/db_utils.js');
@@ -25,26 +25,12 @@ const mongoStore = MongoStore.create({
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-app.use((req, res, next) => {
-    res.setHeader('Content-Security-Policy', 
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://kit.fontawesome.com; " +
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://kit.fontawesome.com https://ka-f.fontawesome.com; " +
-        "img-src 'self' data: https: http:; " +
-        "font-src 'self' https://kit.fontawesome.com https://cdn.jsdelivr.net https://ka-f.fontawesome.com; " +
-        "connect-src 'self' https://kit.fontawesome.com https://ka-f.fontawesome.com; " +
-        "frame-src 'none';"
-    );
-    next();
-});
-
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
     secret: node_session_secret,
     resave: true,
@@ -52,8 +38,11 @@ app.use(session({
     store: mongoStore
 }));
 
-//To be Replaced with 404.ejs
-app.get('*', (req, res) => {
+app.use('/api', apiRouter);
+app.use(express.static(path.join(__dirname, 'public')));
+
+
+app.use((req, res) => {
     res.status(404).send('404 Not Found');
 });
 

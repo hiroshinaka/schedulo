@@ -1,7 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Footer from './Footer';
-
 export default function Landing(){
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,8 +32,6 @@ export default function Landing(){
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

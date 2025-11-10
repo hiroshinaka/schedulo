@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -11,3 +15,13 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+:root {
+  --brand-main: #0a1653;
+  --brand-contrast: #fffcfc;
+}
+
+/* small utility classes used by Header/Footer to ensure branding before Tailwind builds */
+.brand-text { color: var(--brand-main); }
+.brand-bg { background-color: var(--brand-contrast); }
+.brand-border { border-color: rgba(10,22,83,0.08); }

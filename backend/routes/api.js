@@ -10,12 +10,42 @@ const { ok } = require('assert');
 const saltRounds = 10;
 
 //Database Queries imports
-const {createUser} = require('../database/dbQueries/userQueries.js');
+const { createUser, getUserByEmail } = require('../database/dbQueries/userQueries.js');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Return current session user
+router.get('/me', (req, res) => {
+    try {
+        if (req.session && req.session.user) {
+            return res.json({ ok: true, user: req.session.user });
+        }
+        return res.json({ ok: false });
+    } catch (err) {
+        console.error('/me error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+// Logout endpoint
+router.post('/logout', (req, res) => {
+    try {
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destroy error', err);
+                return res.status(500).json({ ok: false, message: 'Logout failed' });
+            }
+            res.clearCookie('connect.sid');
+            return res.json({ ok: true });
+        });
+    } catch (err) {
+        console.error('/logout error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
 });
 
 router.post('/signup', async(req, res)=>{
@@ -57,32 +87,47 @@ router.post('/signup', async(req, res)=>{
     }
 })
 
-router.post('/login', async(req,res)=>{
-    try{
-        const {email, password} = req.body;
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        console.log('/api/login attempt for', email);
 
-        if(!email || !password){
-            return res.status(400).json({message: "Email and Password are required"});
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and Password are required' });
         }
+
         const user = await getUserByEmail(pool, email);
-        if(!user){
-            return res.status(401).json({message: "Invalid email"});
-        }
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if(!passwordMatch){
-            return res.status(401).json({message: "Invalid password"});
+        console.log('/api/login fetched user row:', !!user, user ? { id: user.id, email: user.email, hasPassword: !!user.password } : null);
+
+        if (!user || !user.password) {
+            console.warn('login failed - missing user or password hash for', email);
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        req.session.user ={
+        let passwordMatch = false;
+        try {
+            passwordMatch = await bcrypt.compare(password, user.password);
+            console.log('bcrypt compare result for', email, passwordMatch);
+        } catch (err) {
+            console.error('bcrypt compare error', err);
+            return res.status(500).json({ ok: false, message: 'Authentication error' });
+        }
+
+        if (!passwordMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        req.session.user = {
             id: user.id,
             first_name: user.first_name,
             last_name: user.last_name,
-            email: user.email
+            email: user.email,
         };
-        res.json({ok: true, message: "User logged in successfully"});
-    } catch(err){
+        res.json({ ok: true, message: 'User logged in successfully' });
+    } catch (err) {
         console.error(err);
-        res.status(500).json({ok: false, message: err.message});
+        res.status(500).json({ ok: false, message: err.message });
+    }
+});
 
-    } 
-})
+module.exports = router;

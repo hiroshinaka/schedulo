@@ -1,4 +1,4 @@
-const database = require('../databaseConnection');
+const database = require('./sqlConnections');
 
 async function printMySQLVersion() {
 	let sqlQuery = `
@@ -12,7 +12,6 @@ async function printMySQLVersion() {
 		console.log("Successfully connected to MySQL");
 		console.log(results[0]);
 		console.log(dbName[0]);
-		console.log("http://localhost:3000");
 		return true;
 	}
 	catch(err) {

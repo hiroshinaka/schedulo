@@ -3,24 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 const Login = () => {
-    const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
     const { login, user, loggedIn} = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        if (loggedIn) navigate('/');
-    }, [loggedIn, navigate]);
+  useEffect(() => {
+    if (loggedIn) navigate('/app');
+  }, [loggedIn, navigate]);
 
     const handleSubmit = async (e) =>{
         e.preventDefault();
         try {
-            const data = await login(username, password);
+      const data = await login(email, password);
             setMessage(data.message || '');
-            if (data && data.ok){
-                navigate('/');
-            }
+      if (data && data.ok){
+        navigate('/app');
+      }
         } catch (error) {
             console.error(error);
             setMessage('An error occurred during login. Please try again.');
@@ -30,20 +30,20 @@ return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-lg">
         <h2 className="text-2xl font-bold text-center text-slate-900 mb-12">
-          {user ? `Hello, ${user.username}` : 'Login to Threadly'}
+          {user ? `Hello, ${user.first_name || user.email}` : 'Login to Threadly'}
         </h2>
 
         {!user && (
           <form onSubmit={handleSubmit} className="space-y-5">
-            <label htmlFor="username" className="block">
-              <span className="text-sm font-medium text-gray-700">Username</span>
+            <label htmlFor="email" className="block">
+              <span className="text-sm font-medium text-gray-700">Email</span>
               <input
-                type="text"
-                id="username"
+                type="email"
+                id="email"
                 className="mt-0.5 w-full rounded border border-gray-300 shadow-sm sm:text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition-colors ease-in-out"
-                placeholder="Enter your username"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
               />
             </label>
