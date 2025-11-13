@@ -33,8 +33,7 @@ app.use(express.json());
 
 
 const allowedOrigins = [
-  'https://schedulo-two.vercel.app/',
-  'http://localhost:5000',
+  'https://schedulo-two.vercel.app',
   'http://localhost:3000',
 ];
 app.use(
