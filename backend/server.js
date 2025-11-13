@@ -30,16 +30,45 @@ const PORT = process.env.PORT || 5000;
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
-app.use(cors({
-    origin: true,
+// Configure trusted proxy (needed when running behind a proxy like Render/Vercel)
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
+// Allowed origins should be provided as a comma-separated env var `FRONTEND_ORIGINS`.
+// Example: FRONTEND_ORIGINS="https://your-vercel-app.vercel.app,http://localhost:3000"
+const rawOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || '';
+const allowedOrigins = rawOrigins.split(',').map(s => s.trim()).filter(Boolean);
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.length === 0) {
+            // No configured list — fall back to echoing the request origin.
+            return callback(null, true);
+        }
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-}));
+    optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
 
 app.use(session({
     secret: node_session_secret,
     resave: true,
     saveUninitialized: true,
-    store: mongoStore
+    store: mongoStore,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    }
 }));
 
 app.use('/api', apiRouter);
