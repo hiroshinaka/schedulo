@@ -6,12 +6,13 @@ import startOfWeek from 'date-fns/startOfWeek';
 import getDay from 'date-fns/getDay';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import AddEventModal from './AddEventModal';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 // tiny sample events
-const sampleEvents = [
+const initialEvents = [
   {
     id: 0,
     title: 'Meeting',
@@ -28,6 +29,15 @@ const sampleEvents = [
 
 export default function CalendarPage() {
   const [view, setView] = useState('month'); // 'month' | 'week' | 'day'
+  const [events, setEvents] = useState(initialEvents);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleAddEvent = (newEvent) => {
+    // assign a simple id
+    const id = events.length ? Math.max(...events.map((e) => e.id)) + 1 : 0;
+    setEvents((prev) => [...prev, { ...newEvent, id }]);
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
@@ -35,14 +45,17 @@ export default function CalendarPage() {
         <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-main)' }}>Your Calendar</h2>
 
         <div className="my-4 flex gap-2">
-          <button onClick={() => setView('month')} className="px-3 py-1 rounded bg-gray-200">Month</button>
-          <button onClick={() => setView('week')} className="px-3 py-1 rounded bg-gray-200">Week</button>
-          <button onClick={() => setView('day')} className="px-3 py-1 rounded bg-gray-200">Day</button>
+          <button
+            className="px-3 py-1 rounded bg-gray-200"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Add Event
+          </button>
         </div>
 
         <BigCalendar
           localizer={localizer}
-          events={sampleEvents}
+          events={events}
           startAccessor="start"
           endAccessor="end"
           view={view}
@@ -50,6 +63,11 @@ export default function CalendarPage() {
           selectable
           style={{ height: 600 }}
           defaultDate={new Date()}
+        />
+        <AddEventModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleAddEvent}
         />
       </div>
     </div>

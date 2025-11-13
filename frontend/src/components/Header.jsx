@@ -30,7 +30,6 @@ export default function Header() {
 							>
 								Log out
 							</button>
-							<Link to="/app" className="ml-2 inline-flex items-center px-4 py-2" style={{ backgroundColor: 'var(--brand-main)', color: 'var(--brand-contrast)', borderRadius: 6, fontSize: 14 }}>Open App</Link>
 						</>
 					) : (
 						<>
