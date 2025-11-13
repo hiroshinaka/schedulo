@@ -9,7 +9,7 @@ const apiRouter = require('./routes/api.js');
 const {database} = include('database/sqlConnections.js');
 const dbUtils = include('database/db_utils.js');
 const success = dbUtils.printMySQLVersion();
-
+const cors = require('cors');
 const mongodb_user = process.env.MONGODB_USER;
 const mongodb_password = process.env.MONGODB_PASSWORD;
 const mongodb_host = process.env.MONGODB_HOST;
@@ -30,6 +30,10 @@ const PORT = process.env.PORT || 5000;
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.use(cors({
+    origin: true,
+    credentials: true,
+}));
 
 app.use(session({
     secret: node_session_secret,
