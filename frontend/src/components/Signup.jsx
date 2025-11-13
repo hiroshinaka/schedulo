@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_BASE from '../utils/apiBase';
 import { useNavigate } from 'react-router-dom';
 
 export default function Signup() {
@@ -14,7 +15,7 @@ export default function Signup() {
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch('/api/signup', {
+      const res = await fetch(`${API_BASE}/api/signup`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -32,7 +33,7 @@ export default function Signup() {
 
       // Try auto-login using the login endpoint (backend expects email/password)
       try {
-        const loginRes = await fetch('/api/login', {
+        const loginRes = await fetch(`${API_BASE}/api/login`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
