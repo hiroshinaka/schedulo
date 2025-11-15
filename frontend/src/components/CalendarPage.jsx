@@ -49,7 +49,7 @@ export default function CalendarPage() {
             className="px-3 py-1 rounded bg-gray-200"
             onClick={() => setIsModalOpen(true)}
           >
-            Add Event
+            <i className="fa-solid fa-plus"></i> Add Event
           </button>
         </div>
 
