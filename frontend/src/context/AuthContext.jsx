@@ -1,5 +1,19 @@
 import React, { createContext, useState, useEffect } from 'react';
 import API_BASE from '../utils/apiBase';
+import { initFirebaseClient, signInWithServerToken } from '../firebase/client';
+
+// initialize firebase client if config provided via env
+if (process.env.REACT_APP_FIREBASE_API_KEY) {
+  try {
+    initFirebaseClient({
+      apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+      authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    });
+  } catch (err) {
+    console.warn('Firebase client init failed', err);
+  }
+}
 
 export const AuthContext = createContext({
   user: null,
@@ -24,6 +38,15 @@ export function AuthProvider({ children }) {
       const data = await res.json();
       if (data && data.ok && data.user) {
         setUser(data.user);
+        // attempt firebase sign-in with custom token (non-blocking)
+        (async () => {
+          try {
+            await signInWithServerToken();
+          } catch (err) {
+            // non-fatal: app still functions without firebase auth
+            // console.debug('Firebase sign-in skipped or failed', err);
+          }
+        })();
         return data.user;
       }
       setUser(null);

@@ -8,6 +8,8 @@ const bcrypt = require('bcrypt');
 const joi = require('joi');
 const { ok } = require('assert');
 const saltRounds = 10;
+const initFirebaseAdmin = require('../database/firebaseAdmin');
+const chatRouter = require('./chat');
 
 //Database Queries imports
 const { createUser, getUserByEmail } = require('../database/dbQueries/userQueries.js');
@@ -129,5 +131,23 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ ok: false, message: err.message });
     }
 });
+
+// Issue a Firebase custom token for the currently authenticated session user
+router.post('/firebase-token', async (req, res) => {
+    try {
+        if (!req.session || !req.session.user) return res.status(401).json({ ok: false, message: 'unauthenticated' });
+        const admin = initFirebaseAdmin();
+        const uid = String(req.session.user.id);
+        const additionalClaims = { email: req.session.user.email };
+        const token = await admin.auth().createCustomToken(uid, additionalClaims);
+        return res.json({ ok: true, token });
+    } catch (err) {
+        console.error('Error creating firebase token', err);
+        return res.status(500).json({ ok: false, message: 'token_error' });
+    }
+});
+
+// Mount chat routes
+router.use('/chats', chatRouter);
 
 module.exports = router;
