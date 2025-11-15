@@ -7,6 +7,7 @@ import Landing from './components/Landing';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import CalendarPage from './components/CalendarPage';
+import ChatPage from './pages/ChatPage';
 import useAuth from './hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 
@@ -33,6 +34,10 @@ function App() {
               <Route
                 path="/app"
                 element={<RequireAuth><CalendarPage /></RequireAuth>}
+              />
+              <Route
+                path="/chat"
+                element={<RequireAuth><ChatPage /></RequireAuth>}
               />
               {/* Additional routes can be added here */}
             </Routes>
