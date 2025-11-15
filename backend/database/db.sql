@@ -31,24 +31,22 @@ CREATE TABLE friend_request (
   CONSTRAINT uq_request UNIQUE (sender_id, receiver_id)
 );
 
-CREATE TABLE event (
-  event_id INT NOT NULL AUTO_INCREMENT,
-  owner_id INT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  location VARCHAR(255) DEFAULT NULL,
-  start_time DATETIME NOT NULL,
-  end_time DATETIME NOT NULL,
-  colour VARCHAR(7) NOT NULL DEFAULT '#FFFFFF',
-  is_all_day TINYINT(1) DEFAULT 0,
-  deleted_at DATETIME DEFAULT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (event_id),
-  KEY idx_event_owner (owner_id),
-  KEY idx_event_start_time (start_time),
-  CONSTRAINT event_ibfk_owner FOREIGN KEY (owner_id)
-    REFERENCES user (user_id)
-    ON DELETE CASCADE
+CREATE TABLE "event" (
+  "event_id" int NOT NULL AUTO_INCREMENT,
+  "owner_id" int NOT NULL,
+  "title" varchar(255) NOT NULL,
+  "location" varchar(255) DEFAULT NULL,
+  "start_time" datetime NOT NULL,
+  "end_time" datetime NOT NULL,
+  "colour" varchar(7) NOT NULL DEFAULT '#FFFFFF',
+  "recurring" tinyint(1) DEFAULT '0',
+  "deleted_at" datetime DEFAULT NULL,
+  "created_at" datetime DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("event_id"),
+  KEY "idx_event_owner" ("owner_id"),
+  KEY "idx_event_start_time" ("start_time"),
+  CONSTRAINT "event_ibfk_owner" FOREIGN KEY ("owner_id") REFERENCES "user" ("user_id") ON DELETE CASCADE
 );
 
 

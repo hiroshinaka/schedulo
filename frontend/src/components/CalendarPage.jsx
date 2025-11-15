@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
@@ -11,6 +11,18 @@ import AddEventModal from './AddEventModal';
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
+async function fetchEvents() {
+  try {
+    const res = await fetch('/api/events', { credentials: 'include' });
+    if (!res.ok) return;
+    const data = await res.json();
+    console.log(data.events)
+    return data.events || [];
+  } catch (err) {
+    console.error('Error fetching events', err);
+    return [];
+  }
+}
 // tiny sample events
 const initialEvents = [
   {
@@ -30,13 +42,43 @@ const initialEvents = [
 export default function CalendarPage() {
   const [view, setView] = useState('month'); // 'month' | 'week' | 'day'
   const [events, setEvents] = useState(initialEvents);
+  const [date, setDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      const ev = await fetchEvents();
+      if (ev && ev.length) {
+        // map backend rows to calendar events with Date objects
+        const mapped = ev.map((e) => ({
+          id: e.id,
+          title: e.title,
+          start: new Date(e.start_time),
+          end: new Date(e.end_time),
+          color: e.colour,
+        }));
+        setEvents(mapped);
+      }
+    })();
+  }, []);
+
   const handleAddEvent = (newEvent) => {
-    // assign a simple id
-    const id = events.length ? Math.max(...events.map((e) => e.id)) + 1 : 0;
+    // if backend returned an id, use it; otherwise assign a local id
+    const id = (newEvent && newEvent.id !== undefined) ? newEvent.id : (events.length ? Math.max(...events.map((e) => e.id)) + 1 : 0);
     setEvents((prev) => [...prev, { ...newEvent, id }]);
     setIsModalOpen(false);
+  };
+
+  const eventStyleGetter = (event) => {
+    const bg = event.color || event.colour || '#2563eb';
+    const style = {
+      backgroundColor: bg,
+      borderRadius: '6px',
+      color: '#ffffff',
+      border: 'none',
+      padding: '2px 4px'
+    };
+    return { style };
   };
 
   return (
@@ -60,6 +102,9 @@ export default function CalendarPage() {
           endAccessor="end"
           view={view}
           onView={(v) => setView(v)}
+          date={date}
+          onNavigate={(newDate) => setDate(newDate)}
+          eventPropGetter={eventStyleGetter}
           selectable
           style={{ height: 600 }}
           defaultDate={new Date()}
