@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../utils/apiBase';
 import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
@@ -13,7 +14,7 @@ const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales
 
 async function fetchEvents() {
   try {
-    const res = await fetch('/api/events', { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/events`, { credentials: 'include' });
     if (!res.ok) {
       // try to read body for debugging
       let txt = '';

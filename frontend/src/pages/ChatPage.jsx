@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_BASE from '../utils/apiBase';
 import useAuth from '../hooks/useAuth';
 import useChat from '../hooks/useChat';
 
@@ -16,12 +17,13 @@ export default function ChatPage() {
     // fetch chats from backend
     (async () => {
       try {
-        const res = await fetch('/api/chats', { credentials: 'include' });
+        const res = await fetch(`${API_BASE}/api/chats`, { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (data && data.chats) {
           setChats(data.chats);
-          if (!selectedChat && data.chats.length) setSelectedChat(data.chats[0]);
+          // set selected chat only if none currently selected
+          setSelectedChat((prev) => prev || (data.chats.length ? data.chats[0] : null));
         }
       } catch (err) {
         console.error('Failed to load chats', err);
@@ -37,7 +39,7 @@ export default function ChatPage() {
       .map((s) => s.trim())
       .filter(Boolean);
     try {
-      const res = await fetch('/api/chats', {
+      const res = await fetch(`${API_BASE}/api/chats`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +70,7 @@ export default function ChatPage() {
       console.error('send message failed', err);
       // fallback: try server endpoint to add message
       try {
-        await fetch(`/api/chats/${selectedChat.id}/messages`, {
+        await fetch(`${API_BASE}/api/chats/${selectedChat.id}/messages`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
