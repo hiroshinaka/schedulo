@@ -14,9 +14,24 @@ const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales
 async function fetchEvents() {
   try {
     const res = await fetch('/api/events', { credentials: 'include' });
-    if (!res.ok) return;
+    if (!res.ok) {
+      // try to read body for debugging
+      let txt = '';
+      try { txt = await res.text(); } catch (e) { /* ignore */ }
+      console.error('fetch /api/events failed', res.status, res.statusText, txt);
+      return [];
+    }
+
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      // server returned a non-JSON body (HTML/login redirect etc.) — read it for debugging
+      const raw = await res.text();
+      console.error('fetch /api/events received non-JSON response:', raw);
+      return [];
+    }
+
     const data = await res.json();
-    console.log(data.events)
+    console.log('fetched events', data.events);
     return data.events || [];
   } catch (err) {
     console.error('Error fetching events', err);
