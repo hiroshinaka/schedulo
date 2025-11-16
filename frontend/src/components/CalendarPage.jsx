@@ -24,40 +24,33 @@ async function fetchEvents() {
   }
 }
 // tiny sample events
-const initialEvents = [
-  {
-    id: 0,
-    title: 'Meeting',
-    start: new Date(2025, 10, 12, 10, 0), // Nov 12, 2025 10:00
-    end: new Date(2025, 10, 12, 11, 0),
-  },
-  {
-    id: 1,
-    title: 'Lunch',
-    start: new Date(2025, 10, 13, 12, 0),
-    end: new Date(2025, 10, 13, 13, 0),
-  },
-];
 
 export default function CalendarPage() {
   const [view, setView] = useState('month'); // 'month' | 'week' | 'day'
-  const [events, setEvents] = useState(initialEvents);
+  const [eventsRaw, setEventsRaw] = useState([]); // events as returned from backend
+  const [events, setEvents] = useState([]); // displayed events (including expanded recurrences)
   const [date, setDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [range, setRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end };
+  });
 
   useEffect(() => {
     (async () => {
       const ev = await fetchEvents();
       if (ev && ev.length) {
-        // map backend rows to calendar events with Date objects
         const mapped = ev.map((e) => ({
           id: e.id,
           title: e.title,
           start: new Date(e.start_time),
           end: new Date(e.end_time),
-          color: e.colour,
+          color: e.colour || e.color || null,
+          recurrence: e.recurrence || e.recurring || null,
         }));
-        setEvents(mapped);
+        setEventsRaw(mapped);
       }
     })();
   }, []);
@@ -69,6 +62,13 @@ export default function CalendarPage() {
     setIsModalOpen(false);
   };
 
+  // when raw events or visible range changes, compute displayed events
+  useEffect(() => {
+    if (!eventsRaw || !eventsRaw.length) return;
+    const expanded = expandRecurringEvents(eventsRaw, range.start, range.end);
+    setEvents(expanded.length ? expanded : eventsRaw);
+  }, [eventsRaw, range.start, range.end]);
+
   const eventStyleGetter = (event) => {
     const bg = event.color || event.colour || '#2563eb';
     const style = {
@@ -79,6 +79,93 @@ export default function CalendarPage() {
       padding: '2px 4px'
     };
     return { style };
+  };
+
+  /**   
+ * Expand recurring events from a list of events within a given range.
+ * @param {Array<Object>} evList - list of events with possible recurrence rules
+ * @param {Date} rangeStart - start of the range to expand recurring events
+ * @param {Date} rangeEnd - end of the range to expand recurring events
+ * @returns {Array<Object>} - list of expanded events with no recurrence rules
+ * 
+  */
+  function expandRecurringEvents(evList, rangeStart, rangeEnd) {
+    if (!Array.isArray(evList)) return [];
+    const out = [];
+    const maxOccurrences = 500;
+    for (const e of evList) {
+      if (!e.recurrence) {
+        out.push(e);
+        continue;
+      }
+      const rule = String(e.recurrence).toLowerCase();
+      const origStart = new Date(e.start);
+      const duration = (new Date(e.end)).getTime() - origStart.getTime();
+
+      // if original start is after rangeEnd, but might still want first occurrence if within range
+      let cursor = new Date(origStart);
+
+      // fast-forward cursor to be at or after rangeStart
+      if (cursor < rangeStart) {
+        if (rule === 'daily') {
+          const days = Math.floor((rangeStart - cursor) / (24 * 60 * 60 * 1000));
+          cursor.setDate(cursor.getDate() + days);
+        } else if (rule === 'weekly') {
+          const weeks = Math.floor((rangeStart - cursor) / (7 * 24 * 60 * 60 * 1000));
+          cursor.setDate(cursor.getDate() + weeks * 7);
+        } else if (rule === 'monthly') {
+          const months = (rangeStart.getFullYear() - cursor.getFullYear()) * 12 + (rangeStart.getMonth() - cursor.getMonth());
+          cursor.setMonth(cursor.getMonth() + months);
+        } else if (rule === 'yearly') {
+          const years = rangeStart.getFullYear() - cursor.getFullYear();
+          cursor.setFullYear(cursor.getFullYear() + years);
+        }
+      }
+
+      let count = 0;
+      while (cursor <= rangeEnd && count < maxOccurrences) {
+        if (cursor >= rangeStart && cursor <= rangeEnd) {
+          out.push({
+            ...e,
+            start: new Date(cursor),
+            end: new Date(cursor.getTime() + duration),
+          });
+        }
+        // advance cursor
+        if (rule === 'daily') cursor.setDate(cursor.getDate() + 1);
+        else if (rule === 'weekly') cursor.setDate(cursor.getDate() + 7);
+        else if (rule === 'monthly') cursor.setMonth(cursor.getMonth() + 1);
+        else if (rule === 'yearly') cursor.setFullYear(cursor.getFullYear() + 1);
+        else break; // unknown rule
+        count += 1;
+      }
+    }
+    return out;
+  }
+
+  // handle when calendar range changes (month/week/day)
+  const handleRangeChange = (newRange) => {
+    // newRange can be an array of dates (month view) or { start, end }
+    let start, end;
+    if (Array.isArray(newRange) && newRange.length) {
+      start = new Date(Math.min(...newRange.map(d => new Date(d).getTime())));
+      end = new Date(Math.max(...newRange.map(d => new Date(d).getTime())));
+    } else if (newRange && newRange.start && newRange.end) {
+      start = new Date(newRange.start);
+      end = new Date(newRange.end);
+    } else if (newRange instanceof Date) {
+      start = new Date(newRange);
+      end = new Date(newRange);
+    } else {
+      // fallback to current month
+      const now = new Date();
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    setRange({ start, end });
+    // expand using raw events
+    const expanded = expandRecurringEvents(eventsRaw.length ? eventsRaw : [], start, end);
+    setEvents(expanded.length ? expanded : (eventsRaw.length ? eventsRaw : []));
   };
 
   return (
@@ -104,6 +191,7 @@ export default function CalendarPage() {
           onView={(v) => setView(v)}
           date={date}
           onNavigate={(newDate) => setDate(newDate)}
+          onRangeChange={handleRangeChange}
           eventPropGetter={eventStyleGetter}
           selectable
           style={{ height: 600 }}

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/sqlConnections.js');
 const eventQueries = require('../database/dbQueries/eventsQueries.js');
+const { getBusyIntervalsForUsers, checkUsersBusyForInterval } = require('../database/dbQueries/eventsQueries.js');
 
 function requireSessionUser(req, res, next) {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'unauthenticated' });
@@ -37,7 +38,19 @@ router.post('/invite', requireSessionUser, async (req, res) => {
         }
 
         // attendees expected as array of user ids
-        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurring, color, attendees || []);
+        const inviteeIds = Array.isArray(attendees) ? [...new Set(attendees.map(String))] : [];
+        // remove owner if present
+        const filteredInvitees = inviteeIds.filter(id => id !== String(uid));
+
+        // check for conflicts for each invitee
+        if (filteredInvitees.length) {
+            const conflicts = await eventQueries.checkUsersBusyForInterval(pool, filteredInvitees, startDate, endDate);
+            if (conflicts && conflicts.length) {
+                return res.status(409).json({ error: 'conflicts', conflicts });
+            }
+        }
+
+        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurring, color, inviteeIds || []);
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events/invite error', err);
@@ -53,6 +66,23 @@ router.post('/:eventId/invite', requireSessionUser, async (req, res) => {
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
         if (!eventId) return res.status(400).json({ error: 'eventId required' });
         if (!Array.isArray(attendees) || attendees.length === 0) return res.status(400).json({ error: 'attendees required' });
+
+        // fetch event times to check conflicts
+        const [evRows] = await pool.query('SELECT start_time, end_time FROM event WHERE event_id = ?', [eventId]);
+        const evSet = Array.isArray(evRows[0]) ? evRows[0] : evRows;
+        if (!evSet || !evSet.length) return res.status(404).json({ error: 'event not found' });
+        const ev = evSet[0];
+        const start = ev.start_time;
+        const end = ev.end_time;
+
+        const inviteeIds = Array.isArray(attendees) ? [...new Set(attendees.map(String))] : [];
+        const filteredInvitees = inviteeIds.filter(id => id !== String(uid));
+        if (filteredInvitees.length) {
+            const conflicts = await eventQueries.checkUsersBusyForInterval(pool, filteredInvitees, start, end);
+            if (conflicts && conflicts.length) {
+                return res.status(409).json({ error: 'conflicts', conflicts });
+            }
+        }
 
         await eventQueries.inviteFriendsToEvent(pool, eventId, uid, attendees);
         return res.json({ ok: true });
@@ -77,11 +107,139 @@ router.get('/', requireSessionUser, async (req, res) => {
             start_time: r.start_time,
             end_time: r.end_time,
             colour: r.colour,
+            recurrence: r.recurrence || null,
             attendance_status: r.attendance_status,
         }));
         return res.json({ events });
-    } catch (err) {
+        } catch (err) {
         console.error('GET /api/events error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+    });
+
+// Find availability for a list of users
+router.post('/availability', requireSessionUser, async (req, res) => {
+    try {
+        const { attendees, durationMinutes, rangeStart, rangeEnd } = req.body || {};
+        // attendees: array of user ids (strings or numbers)
+        // include the requester as well
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        const userIds = Array.isArray(attendees) ? [...new Set(attendees.map(String))] : [];
+        if (!userIds.includes(uid)) userIds.push(uid);
+
+        const dur = Number(durationMinutes || 30);
+        if (!dur || dur <= 0) return res.status(400).json({ error: 'durationMinutes required and must be > 0' });
+
+        const start = rangeStart ? new Date(rangeStart) : new Date();
+        const end = rangeEnd ? new Date(rangeEnd) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // default 7 days
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return res.status(400).json({ error: 'invalid range' });
+
+        // fetch busy intervals for all users
+        const busy = await getBusyIntervalsForUsers(pool, userIds, start.toISOString().slice(0,19).replace('T',' '), end.toISOString().slice(0,19).replace('T',' '));
+
+        // Build busy intervals per user by querying each user's busy times (we already fetched combined busy intervals above),
+        // but to implement per-user free windows we will fetch per-user sets as well.
+        const perUserBusy = {};
+        for (const u of userIds) perUserBusy[u] = [];
+
+        // We'll run smaller queries to fetch per-user busy times to allow per-user merging
+        for (const u of userIds) {
+            const rows = await pool.query(
+                `SELECT DISTINCT e.start_time AS start_time, e.end_time AS end_time
+                 FROM event e
+                 LEFT JOIN event_attendee ea ON e.event_id = ea.event_id
+                 WHERE (e.owner_id = ? OR ea.user_id = ?) AND NOT (e.end_time <= ? OR e.start_time >= ?)`,
+                [u, u, start.toISOString().slice(0,19).replace('T',' '), end.toISOString().slice(0,19).replace('T',' ')]
+            );
+            // rows is [rows, fields] from mysql2 when using pool.query; normalize
+            const rowset = Array.isArray(rows[0]) ? rows[0] : rows;
+            perUserBusy[u] = (rowset || []).map(r => ({ start: new Date(r.start_time), end: new Date(r.end_time) }));
+        }
+
+        // helper to merge intervals
+        const mergeIntervals = (intervals) => {
+            if (!intervals || !intervals.length) return [];
+            const arr = intervals.slice().sort((a,b) => new Date(a.start) - new Date(b.start));
+            const out = [];
+            let cur = { start: new Date(arr[0].start), end: new Date(arr[0].end) };
+            for (let i = 1; i < arr.length; i++) {
+                const it = { start: new Date(arr[i].start), end: new Date(arr[i].end) };
+                if (it.start <= cur.end) {
+                    if (it.end > cur.end) cur.end = it.end;
+                } else {
+                    out.push(cur);
+                    cur = it;
+                }
+            }
+            out.push(cur);
+            return out;
+        };
+
+        // compute per-user free intervals within [start,end]
+        const perUserFree = {};
+        for (const u of userIds) {
+            const merged = mergeIntervals(perUserBusy[u]);
+            const free = [];
+            let cursor = new Date(start);
+            for (const b of merged) {
+                if (b.start > cursor) free.push({ start: new Date(cursor), end: new Date(b.start) });
+                if (b.end > cursor) cursor = new Date(b.end);
+            }
+            if (cursor < end) free.push({ start: new Date(cursor), end: new Date(end) });
+            perUserFree[u] = free;
+        }
+
+        // intersect free windows across all users
+        const intersectTwoLists = (a, b) => {
+            const out = [];
+            let i=0,j=0;
+            while (i < a.length && j < b.length) {
+                const s = new Date(Math.max(a[i].start, b[j].start));
+                const e = new Date(Math.min(a[i].end, b[j].end));
+                if (s < e) out.push({ start: s, end: e });
+                if (a[i].end < b[j].end) i++; else j++;
+            }
+            return out;
+        };
+
+        // start with first user's free list
+        const users = Object.keys(perUserFree);
+        let common = perUserFree[users[0]] || [];
+        for (let k = 1; k < users.length; k++) {
+            common = intersectTwoLists(common, perUserFree[users[k]] || []);
+            if (!common.length) break;
+        }
+
+        // filter for duration
+        const durMs = dur * 60 * 1000;
+        const slots = [];
+        for (const c of common) {
+            const slotLen = c.end.getTime() - c.start.getTime();
+            if (slotLen >= durMs) {
+                // add earliest possible occurrences within that free window (we can also split into multiple slots)
+                slots.push({ start: c.start.toISOString(), end: new Date(c.start.getTime() + durMs).toISOString() });
+            }
+        }
+
+        return res.json({ slots });
+    } catch (err) {
+        console.error('POST /api/events/availability error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Check conflicts for a candidate interval for a set of users (preflight)
+router.post('/check-conflicts', requireSessionUser, async (req, res) => {
+    try {
+        const { attendees, startDate, endDate } = req.body || {};
+        if (!Array.isArray(attendees) || attendees.length === 0) return res.status(400).json({ error: 'attendees required' });
+        if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
+
+        const inviteeIds = attendees.map(String);
+        const conflicts = await checkUsersBusyForInterval(pool, inviteeIds, startDate, endDate);
+        return res.json({ conflicts });
+    } catch (err) {
+        console.error('POST /api/events/check-conflicts error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
 });
