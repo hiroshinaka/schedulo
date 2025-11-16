@@ -10,6 +10,8 @@ const { ok } = require('assert');
 const saltRounds = 10;
 const initFirebaseAdmin = require('../database/firebaseAdmin');
 const chatRouter = require('./chat');
+const eventsRouter = require('./events');
+const friendsRouter = require('./friends');
 
 //Database Queries imports
 const { createUser, getUserByEmail } = require('../database/dbQueries/userQueries.js');
@@ -149,5 +151,9 @@ router.post('/firebase-token', async (req, res) => {
 
 // Mount chat routes
 router.use('/chats', chatRouter);
+// Mount events routes
+router.use('/events', eventsRouter);
+// Mount friends
+router.use('/friends', friendsRouter);
 
 module.exports = router;
