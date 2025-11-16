@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore as _getFirestore } from 'firebase/firestore';
+import API_BASE from '../utils/apiBase';
 
 let app = null;
 let auth = null;
@@ -22,9 +23,10 @@ export function initFirebaseClient(config) {
 }
 
 // Fetches a custom token from your backend and signs in the firebase client.
+
 export async function signInWithServerToken() {
   // backend endpoint returns { ok: true, token }
-  const resp = await fetch('/api/firebase-token', { method: 'POST', credentials: 'include' });
+  const resp = await fetch(`${API_BASE}/api/firebase-token`, { method: 'POST', credentials: 'include' });
   if (!resp.ok) throw new Error('Failed to fetch firebase token');
   const data = await resp.json();
   if (!data || !data.ok || !data.token) throw new Error('No firebase token returned');

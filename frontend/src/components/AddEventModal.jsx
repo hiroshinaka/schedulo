@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HexColorPicker } from "react-colorful";
+import API_BASE from '../utils/apiBase';
 
 export default function AddEventModal({isOpen, onClose, onSave}) {
     const [title, setTitle] = useState('');
@@ -54,7 +55,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
 
         // If there are invited users, call backend create+invite endpoint
         try {
-                if (invitedUsers && invitedUsers.length) {
+            if (invitedUsers && invitedUsers.length) {
                 const attendeeIds = invitedUsers.map(u => u.id);
                 // if conflicts exist, prevent submit and show message
                 if (conflicts && conflicts.length) {
@@ -62,15 +63,15 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                     return;
                 }
 
-                const resp = await fetch('/api/events/invite', {
+                const resp = await fetch(`${API_BASE}/api/events/invite`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         title: title.trim(),
                         startDate: startDate,
-                            endDate: endDate,
-                            recurring: recurring || '',
+                        endDate: endDate,
+                        recurring: recurring || '',
                         color,
                         attendees: attendeeIds
                     })
@@ -93,7 +94,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
             }
 
             // If no invited users, create via backend /api/events so it's persisted
-            const resp2 = await fetch('/api/events', {
+            const resp2 = await fetch(`${API_BASE}/api/events`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -138,7 +139,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
             try {
                 setIsCheckingConflicts(true);
                 const attendeeIds = invitedUsers.map(u => u.id);
-                const resp = await fetch('/api/events/check-conflicts', {
+                const resp = await fetch(`${API_BASE}/api/events/check-conflicts`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
@@ -237,7 +238,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                                         if (!v || !v.trim()) return;
                                         inviteTimer.current = setTimeout(async () => {
                                             try {
-                                                const resp = await fetch(`/api/friends/search?q=${encodeURIComponent(v)}`, { credentials: 'include' });
+                                                const resp = await fetch(`${API_BASE}/api/friends/search?q=${encodeURIComponent(v)}`, { credentials: 'include' });
                                                 if (!resp.ok) return;
                                                 const data = await resp.json();
                                                 setSuggestions(data.friends || []);
