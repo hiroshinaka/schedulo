@@ -4,8 +4,10 @@ CREATE TABLE user (
   last_name varchar(255) DEFAULT NULL,
   email varchar(255) DEFAULT NULL,
   hash_password varchar(255) DEFAULT NULL,
+  image_url varchar(500) DEFAULT NULL,
   PRIMARY KEY (user_id)
 );
+
 
 CREATE TABLE friend (
   friend_id int NOT NULL AUTO_INCREMENT,
