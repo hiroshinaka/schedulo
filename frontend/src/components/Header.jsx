@@ -6,6 +6,8 @@ import useAuth from '../hooks/useAuth';
 export default function Header() {
 	const { user, loggedIn, logout } = useAuth();
 	const navigate = useNavigate();
+	const defaultAvatar = '/default-avatar.svg';
+	const userAvatar = user?.image_url || defaultAvatar;
 
 	const handleLogout = async () => {
 		await logout();
@@ -22,7 +24,13 @@ export default function Header() {
 				<nav className="flex items-center gap-3">
 					{loggedIn ? (
 						<>
-							<span className="text-sm brand-text">{user?.first_name || user?.email || 'Me'}</span>
+							<Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+								<img 
+									src={userAvatar} 
+									alt={user?.first_name || 'Profile'} 
+									className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+								/>
+							</Link>
 							<button
 								onClick={handleLogout}
 								className="ml-2 inline-flex items-center px-4 py-2"
