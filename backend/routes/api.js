@@ -127,6 +127,7 @@ router.post('/login', async (req, res) => {
             first_name: user.first_name,
             last_name: user.last_name,
             email: user.email,
+            image_url: user.image_url,
         };
         res.json({ ok: true, message: 'User logged in successfully' });
     } catch (err) {
