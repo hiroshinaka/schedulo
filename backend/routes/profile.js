@@ -4,6 +4,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6*1024*1024 } });
 const pool = require('../database/sqlConnections.js');
+const friendsQueries = require('../database/dbQueries/friendsQueries.js');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -18,12 +19,10 @@ function requireSessionUser(req, res, next) {
     next();
 }
 
-// Get profile data for logged-in user
 router.get('/me', requireSessionUser, async (req, res) => {
     try {
         const userId = req.session.user.id;
         
-        // Fetch user data
         const [userRows] = await pool.query(
             'SELECT user_id AS id, first_name, last_name, email, image_url FROM `user` WHERE user_id = ?',
             [userId]
@@ -43,7 +42,6 @@ router.get('/me', requireSessionUser, async (req, res) => {
     }
 });
 
-// Upload avatar
 router.post('/avatar', requireSessionUser, upload.single('avatar'), async (req, res) => {
     try {
         const userId = req.session.user.id;
@@ -52,7 +50,6 @@ router.post('/avatar', requireSessionUser, upload.single('avatar'), async (req, 
             return res.status(400).json({ ok: false, message: 'No file uploaded' });
         }
 
-        // Upload to Cloudinary
         const result = await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 { folder: 'schedulo_avatars', resource_type: 'image' },
@@ -66,20 +63,17 @@ router.post('/avatar', requireSessionUser, upload.single('avatar'), async (req, 
 
         const imageUrl = result.secure_url;
 
-        // Update user's image_url in database
         await pool.query(
             'UPDATE `user` SET image_url = ? WHERE user_id = ?',
             [imageUrl, userId]
         );
 
-        // Fetch updated user data
         const [userRows] = await pool.query(
             'SELECT user_id AS id, first_name, last_name, email, image_url FROM `user` WHERE user_id = ?',
             [userId]
         );
 
         if (userRows.length) {
-            // Update session
             req.session.user = {
                 ...req.session.user,
                 image_url: imageUrl
@@ -93,6 +87,163 @@ router.post('/avatar', requireSessionUser, upload.single('avatar'), async (req, 
         });
     } catch (err) {
         console.error('POST /api/profile/avatar error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.get('/search-users', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const q = String(req.query.q || '').trim();
+        
+        if (!q) {
+            return res.json({ ok: true, users: [] });
+        }
+        
+        const users = await friendsQueries.searchUsers(pool, q, 10, userId);
+        return res.json({ ok: true, users });
+    } catch (err) {
+        console.error('GET /api/profile/search-users error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.get('/friends', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const friends = await friendsQueries.getFriends(pool, userId);
+        return res.json({ ok: true, friends });
+    } catch (err) {
+        console.error('GET /api/profile/friends error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.get('/friend-requests', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const pending = await friendsQueries.getPendingRequests(pool, userId);
+        const sent = await friendsQueries.getSentRequests(pool, userId);
+        return res.json({ ok: true, pending, sent });
+    } catch (err) {
+        console.error('GET /api/profile/friend-requests error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/send-friend-request', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { receiverId } = req.body;
+        
+        if (!receiverId || receiverId == userId) {
+            return res.status(400).json({ ok: false, message: 'Invalid receiver' });
+        }
+        
+        const existingRequest = await friendsQueries.checkExistingRequest(pool, userId, receiverId);
+        if (existingRequest) {
+            return res.status(409).json({ ok: false, message: 'Friend request already exists' });
+        }
+        
+        const isFriend = await friendsQueries.checkFriendship(pool, userId, receiverId);
+        if (isFriend) {
+            return res.status(409).json({ ok: false, message: 'Already friends' });
+        }
+        
+        await friendsQueries.createFriendRequest(pool, userId, receiverId);
+        return res.json({ ok: true, message: 'Friend request sent' });
+    } catch (err) {
+        console.error('POST /api/profile/send-friend-request error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/accept-friend-request', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { requestId } = req.body;
+        
+        if (!requestId) {
+            return res.status(400).json({ ok: false, message: 'Invalid request' });
+        }
+        
+        const result = await friendsQueries.acceptFriendRequest(pool, requestId, userId);
+        return res.json(result);
+    } catch (err) {
+        console.error('POST /api/profile/accept-friend-request error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/reject-friend-request', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { requestId } = req.body;
+        
+        if (!requestId) {
+            return res.status(400).json({ ok: false, message: 'Invalid request' });
+        }
+        
+        const result = await friendsQueries.rejectFriendRequest(pool, requestId, userId);
+        return res.json(result);
+    } catch (err) {
+        console.error('POST /api/profile/reject-friend-request error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/cancel-friend-request', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { requestId } = req.body;
+        
+        if (!requestId) {
+            return res.status(400).json({ ok: false, message: 'Invalid request' });
+        }
+        
+        const result = await friendsQueries.cancelFriendRequest(pool, requestId, userId);
+        return res.json(result);
+    } catch (err) {
+        console.error('POST /api/profile/cancel-friend-request error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/remove-friend', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const { friendId } = req.body;
+        
+        if (!friendId) {
+            return res.status(400).json({ ok: false, message: 'Invalid friend' });
+        }
+        
+        const result = await friendsQueries.removeFriend(pool, userId, friendId);
+        return res.json(result);
+    } catch (err) {
+        console.error('POST /api/profile/remove-friend error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.get('/unread-requests-count', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const count = await friendsQueries.getUnreadRequestCount(pool, userId);
+        return res.json({ ok: true, count });
+    } catch (err) {
+        console.error('GET /api/profile/unread-requests-count error', err);
+        return res.status(500).json({ ok: false, message: err.message });
+    }
+});
+
+router.post('/mark-requests-read', requireSessionUser, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const result = await friendsQueries.markRequestsAsRead(pool, userId);
+        return res.json(result);
+    } catch (err) {
+        console.error('POST /api/profile/mark-requests-read error', err);
         return res.status(500).json({ ok: false, message: err.message });
     }
 });
