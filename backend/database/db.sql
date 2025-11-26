@@ -8,7 +8,6 @@ CREATE TABLE user (
   PRIMARY KEY (user_id)
 );
 
-
 CREATE TABLE friend (
   friend_id int NOT NULL AUTO_INCREMENT,
   friend_1 int NOT NULL,
@@ -27,6 +26,7 @@ CREATE TABLE friend_request (
   status ENUM('pending', 'accepted', 'rejected', 'cancelled') DEFAULT 'pending',
   sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   responded_at DATETIME DEFAULT NULL,
+  read_at DATETIME DEFAULT NULL,
   PRIMARY KEY (request_id),
   CONSTRAINT fk_sender FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_receiver FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE,
