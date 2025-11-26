@@ -17,7 +17,7 @@ let createUser = async(pool, first_name, last_name, email, hashedPassword) => {
 };
 let getUserByEmail = async(pool, email) => {
     const [rows] = await pool.query(
-        'SELECT user_id AS id, first_name, last_name, email, hash_password AS password FROM `user` WHERE email = ?',
+        'SELECT user_id AS id, first_name, last_name, email, hash_password AS password, image_url FROM `user` WHERE email = ?',
         [email]
     );
     return rows[0];
