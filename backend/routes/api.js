@@ -12,6 +12,7 @@ const initFirebaseAdmin = require('../database/firebaseAdmin');
 const chatRouter = require('./chat');
 const eventsRouter = require('./events');
 const friendsRouter = require('./friends');
+const profileRouter = require('./profile');
 
 //Database Queries imports
 const { createUser, getUserByEmail } = require('../database/dbQueries/userQueries.js');
@@ -155,5 +156,6 @@ router.use('/chats', chatRouter);
 router.use('/events', eventsRouter);
 // Mount friends
 router.use('/friends', friendsRouter);
+router.use('/profile', profileRouter);
 
 module.exports = router;
