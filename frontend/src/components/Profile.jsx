@@ -6,10 +6,197 @@ export default function Profile() {
   const fileInputRef = useRef(null);
   const defaultAvatar = '/default-avatar.svg';
   const [userAvatar, setUserAvatar] = useState(user?.image_url || defaultAvatar);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('friends');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setUserAvatar(user?.image_url || defaultAvatar);
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'requests' && pendingRequests.length > 0) {
+      markRequestsAsRead();
+    }
+  }, [activeTab, pendingRequests.length]);
+
+  const markRequestsAsRead = async () => {
+    try {
+      await fetch('/api/profile/mark-requests-read', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.dispatchEvent(new Event('friend-requests-viewed'));
+    } catch (err) {
+      console.error('Failed to mark requests as read', err);
+    }
+  };
+
+  useEffect(() => {
+    if (loggedIn) {
+      loadFriends();
+      loadFriendRequests();
+    }
+  }, [loggedIn]);
+
+  const loadFriends = async () => {
+    try {
+      const res = await fetch('/api/profile/friends', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        setFriends(data.friends || []);
+      }
+    } catch (err) {
+      console.error('Failed to load friends', err);
+    }
+  };
+
+  const loadFriendRequests = async () => {
+    try {
+      const res = await fetch('/api/profile/friend-requests', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        setPendingRequests(data.pending || []);
+        setSentRequests(data.sent || []);
+      }
+    } catch (err) {
+      console.error('Failed to load friend requests', err);
+    }
+  };
+
+  const searchUsers = async (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/profile/search-users?q=${encodeURIComponent(query)}`, { 
+        credentials: 'include' 
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSearchResults(data.users || []);
+      }
+    } catch (err) {
+      console.error('Failed to search users', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    searchUsers(query);
+  };
+
+  const sendFriendRequest = async (receiverId) => {
+    try {
+      const res = await fetch('/api/profile/send-friend-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ receiverId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert('Friend request sent!');
+        setSearchQuery('');
+        setSearchResults([]);
+        loadFriendRequests();
+      } else {
+        alert(data.message || 'Failed to send friend request');
+      }
+    } catch (err) {
+      console.error('Failed to send friend request', err);
+      alert('Failed to send friend request');
+    }
+  };
+
+  const acceptFriendRequest = async (requestId) => {
+    try {
+      const res = await fetch('/api/profile/accept-friend-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        loadFriends();
+        loadFriendRequests();
+      } else {
+        alert(data.message || 'Failed to accept request');
+      }
+    } catch (err) {
+      console.error('Failed to accept friend request', err);
+    }
+  };
+
+  const rejectFriendRequest = async (requestId) => {
+    try {
+      const res = await fetch('/api/profile/reject-friend-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        loadFriendRequests();
+      } else {
+        alert(data.message || 'Failed to reject request');
+      }
+    } catch (err) {
+      console.error('Failed to reject friend request', err);
+    }
+  };
+
+  const cancelFriendRequest = async (requestId) => {
+    try {
+      const res = await fetch('/api/profile/cancel-friend-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        loadFriendRequests();
+      } else {
+        alert(data.message || 'Failed to cancel request');
+      }
+    } catch (err) {
+      console.error('Failed to cancel friend request', err);
+    }
+  };
+
+  const removeFriend = async (friendId) => {
+    if (!window.confirm('Are you sure you want to remove this friend?')) return;
+    
+    try {
+      const res = await fetch('/api/profile/remove-friend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ friendId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        loadFriends();
+      } else {
+        alert(data.message || 'Failed to remove friend');
+      }
+    } catch (err) {
+      console.error('Failed to remove friend', err);
+    }
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
@@ -105,6 +292,203 @@ export default function Profile() {
         </div>
 
         <section className="mt-8">
+          <h2 className="text-xl text-left font-semibold text-slate-900 mb-4">Friends</h2>
+          
+          <div className="flex gap-2 mb-6 border-b border-slate-200">
+            <button
+              onClick={() => setActiveTab('friends')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === 'friends' 
+                  ? 'border-b-2 border-slate-900 text-slate-900' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              My Friends ({friends.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === 'requests' 
+                  ? 'border-b-2 border-slate-900 text-slate-900' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Requests ({pendingRequests.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('sent')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === 'sent' 
+                  ? 'border-b-2 border-slate-900 text-slate-900' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Sent ({sentRequests.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('add')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === 'add' 
+                  ? 'border-b-2 border-slate-900 text-slate-900' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Add Friends
+            </button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow p-6">
+            {activeTab === 'friends' && (
+              <div className="space-y-3">
+                {friends.length === 0 ? (
+                  <p className="text-slate-500 text-center py-8">No friends yet. Start adding friends!</p>
+                ) : (
+                  friends.map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                      <div className="flex text-left items-center gap-3">
+                        <img 
+                          src={friend.image_url || defaultAvatar} 
+                          alt={friend.first_name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {friend.first_name} {friend.last_name}
+                          </div>
+                          <div className="text-sm text-slate-500">{friend.email}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeFriend(friend.id)}
+                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'requests' && (
+              <div className="space-y-3">
+                {pendingRequests.length === 0 ? (
+                  <p className="text-slate-500 text-center py-8">No pending friend requests</p>
+                ) : (
+                  pendingRequests.map((request) => (
+                    <div key={request.request_id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                      <div className="flex text-left items-center gap-3">
+                        <img 
+                          src={request.image_url || defaultAvatar} 
+                          alt={request.first_name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {request.first_name} {request.last_name}
+                          </div>
+                          <div className="text-sm text-slate-500">{request.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => acceptFriendRequest(request.request_id)}
+                          className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => rejectFriendRequest(request.request_id)}
+                          className="px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 rounded"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'sent' && (
+              <div className="space-y-3">
+                {sentRequests.length === 0 ? (
+                  <p className="text-slate-500 text-center py-8">No sent friend requests</p>
+                ) : (
+                  sentRequests.map((request) => (
+                    <div key={request.request_id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                      <div className="flex text-left items-center gap-3">
+                        <img 
+                          src={request.image_url || defaultAvatar} 
+                          alt={request.first_name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {request.first_name} {request.last_name}
+                          </div>
+                          <div className="text-sm text-slate-500">{request.email}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => cancelFriendRequest(request.request_id)}
+                        className="px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 rounded"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'add' && (
+              <div>
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Search users by name or email..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
+                <div className="space-y-3">
+                  {loading ? (
+                    <p className="text-slate-500 text-center py-8">Searching...</p>
+                  ) : searchResults.length === 0 && searchQuery ? (
+                    <p className="text-slate-500 text-center py-8">No users found</p>
+                  ) : searchResults.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">Search for users to add as friends</p>
+                  ) : (
+                    searchResults.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                        <div className="flex text-left items-center gap-3">
+                          <img 
+                            src={user.image_url || defaultAvatar} 
+                            alt={user.first_name}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <div>
+                            <div className="font-medium text-slate-900">
+                              {user.first_name} {user.last_name}
+                            </div>
+                            <div className="text-sm text-slate-500">{user.email}</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => sendFriendRequest(user.id)}
+                          className="px-3 py-1 text-sm bg-slate-900 text-white hover:bg-slate-800 rounded"
+                        >
+                          Add Friend
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </main>
