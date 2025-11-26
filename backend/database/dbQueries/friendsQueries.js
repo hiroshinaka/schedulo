@@ -2,7 +2,7 @@ let searchFriendsForUser = async (pool, userId, q, limit = 10) => {
   if (!q || !q.trim()) return [];
   const like = `%${q}%`;
   const [rows] = await pool.query(
-    `SELECT u.user_id AS id, u.first_name, u.last_name, u.email
+    `SELECT u.user_id AS id, u.first_name, u.last_name, u.email, u.image_url
      FROM ` + "`user`" + ` u
      JOIN friend f ON ((f.friend_1 = ? AND f.friend_2 = u.user_id) OR (f.friend_2 = ? AND f.friend_1 = u.user_id))
      WHERE (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)
