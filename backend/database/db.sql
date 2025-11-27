@@ -4,6 +4,7 @@ CREATE TABLE user (
   last_name varchar(255) DEFAULT NULL,
   email varchar(255) DEFAULT NULL,
   hash_password varchar(255) DEFAULT NULL,
+  image_url varchar(500) DEFAULT NULL,
   PRIMARY KEY (user_id)
 );
 
@@ -25,6 +26,7 @@ CREATE TABLE friend_request (
   status ENUM('pending', 'accepted', 'rejected', 'cancelled') DEFAULT 'pending',
   sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   responded_at DATETIME DEFAULT NULL,
+  read_at DATETIME DEFAULT NULL,
   PRIMARY KEY (request_id),
   CONSTRAINT fk_sender FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_receiver FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE,
