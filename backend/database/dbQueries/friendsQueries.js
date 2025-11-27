@@ -38,11 +38,12 @@ let getFriends = async (pool, userId) => {
 
 let getPendingRequests = async (pool, userId) => {
   const [rows] = await pool.query(
-    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, fr.status, fr.sent_at,
+    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
             u.first_name, u.last_name, u.email, u.image_url
      FROM friend_request fr
      JOIN ` + "`user`" + ` u ON fr.sender_id = u.user_id
-     WHERE fr.receiver_id = ? AND fr.status = 'pending'
+     JOIN friend_request_status frs ON fr.status_id = frs.status_id
+     WHERE fr.receiver_id = ? AND frs.status_name = 'pending'
      ORDER BY fr.sent_at DESC`,
     [userId]
   );
@@ -51,11 +52,12 @@ let getPendingRequests = async (pool, userId) => {
 
 let getSentRequests = async (pool, userId) => {
   const [rows] = await pool.query(
-    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, fr.status, fr.sent_at,
+    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
             u.first_name, u.last_name, u.email, u.image_url
      FROM friend_request fr
      JOIN ` + "`user`" + ` u ON fr.receiver_id = u.user_id
-     WHERE fr.sender_id = ? AND fr.status = 'pending'
+     JOIN friend_request_status frs ON fr.status_id = frs.status_id
+     WHERE fr.sender_id = ? AND frs.status_name = 'pending'
      ORDER BY fr.sent_at DESC`,
     [userId]
   );
@@ -64,7 +66,7 @@ let getSentRequests = async (pool, userId) => {
 
 let createFriendRequest = async (pool, senderId, receiverId) => {
   const [result] = await pool.query(
-    `INSERT INTO friend_request (sender_id, receiver_id, status) VALUES (?, ?, 'pending')`,
+    `INSERT INTO friend_request (sender_id, receiver_id, status_id) VALUES (?, ?, 1)`,
     [senderId, receiverId]
   );
   return result.insertId;
@@ -72,7 +74,7 @@ let createFriendRequest = async (pool, senderId, receiverId) => {
 
 let acceptFriendRequest = async (pool, requestId, userId) => {
   const [requestRows] = await pool.query(
-    `SELECT sender_id, receiver_id FROM friend_request WHERE request_id = ? AND receiver_id = ? AND status = 'pending'`,
+    `SELECT sender_id, receiver_id FROM friend_request WHERE request_id = ? AND receiver_id = ? AND status_id = 1`,
     [requestId, userId]
   );
   
@@ -83,7 +85,7 @@ let acceptFriendRequest = async (pool, requestId, userId) => {
   const { sender_id, receiver_id } = requestRows[0];
   
   await pool.query(
-    `UPDATE friend_request SET status = 'accepted', responded_at = NOW() WHERE request_id = ?`,
+    `UPDATE friend_request SET status_id = 2, responded_at = NOW() WHERE request_id = ?`,
     [requestId]
   );
   
@@ -98,7 +100,7 @@ let acceptFriendRequest = async (pool, requestId, userId) => {
 let rejectFriendRequest = async (pool, requestId, userId) => {
   const [result] = await pool.query(
     `DELETE FROM friend_request 
-     WHERE request_id = ? AND receiver_id = ? AND status = 'pending'`,
+     WHERE request_id = ? AND receiver_id = ? AND status_id = 1`,
     [requestId, userId]
   );
   
@@ -107,8 +109,8 @@ let rejectFriendRequest = async (pool, requestId, userId) => {
 
 let cancelFriendRequest = async (pool, requestId, userId) => {
   const [result] = await pool.query(
-    `UPDATE friend_request SET status = 'cancelled', responded_at = NOW() 
-     WHERE request_id = ? AND sender_id = ? AND status = 'pending'`,
+    `UPDATE friend_request SET status_id = 4, responded_at = NOW() 
+     WHERE request_id = ? AND sender_id = ? AND status_id = 1`,
     [requestId, userId]
   );
   
@@ -119,7 +121,7 @@ let removeFriend = async (pool, userId, friendId) => {
   await pool.query(
     `DELETE FROM friend_request 
      WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
-     AND status = 'accepted'`,
+     AND status_id = 2`,
     [userId, friendId, friendId, userId]
   );
   
@@ -133,9 +135,10 @@ let removeFriend = async (pool, userId, friendId) => {
 
 let checkExistingRequest = async (pool, senderId, receiverId) => {
   const [rows] = await pool.query(
-    `SELECT request_id, status FROM friend_request 
-     WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
-     AND status = 'pending'`,
+    `SELECT fr.request_id, frs.status_name as status FROM friend_request fr
+     JOIN friend_request_status frs ON fr.status_id = frs.status_id
+     WHERE ((fr.sender_id = ? AND fr.receiver_id = ?) OR (fr.sender_id = ? AND fr.receiver_id = ?))
+     AND frs.status_name = 'pending'`,
     [senderId, receiverId, receiverId, senderId]
   );
   return rows[0] || null;
@@ -153,7 +156,7 @@ let checkFriendship = async (pool, userId1, userId2) => {
 let getUnreadRequestCount = async (pool, userId) => {
   const [rows] = await pool.query(
     `SELECT COUNT(*) as count FROM friend_request 
-     WHERE receiver_id = ? AND status = 'pending' AND read_at IS NULL`,
+     WHERE receiver_id = ? AND status_id = 1 AND read_at IS NULL`,
     [userId]
   );
   return rows[0].count;
@@ -162,7 +165,7 @@ let getUnreadRequestCount = async (pool, userId) => {
 let markRequestsAsRead = async (pool, userId) => {
   await pool.query(
     `UPDATE friend_request SET read_at = NOW() 
-     WHERE receiver_id = ? AND status = 'pending' AND read_at IS NULL`,
+     WHERE receiver_id = ? AND status_id = 1 AND read_at IS NULL`,
     [userId]
   );
   return { ok: true };
