@@ -129,7 +129,15 @@ router.post('/login', async (req, res) => {
             email: user.email,
             image_url: user.image_url,
         };
-        res.json({ ok: true, message: 'User logged in successfully' });
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ ok: false, message: 'Failed to save session' });
+            }
+            console.log('Session saved successfully for user:', user.id);
+            res.json({ ok: true, message: 'User logged in successfully' });
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ ok: false, message: err.message });
