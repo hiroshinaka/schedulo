@@ -17,8 +17,22 @@ const mongodb_database = process.env.MONGODB_DATABASE;
 const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET;
 const node_session_secret = process.env.NODE_SESSION_SECRET;
 
+// Log environment variable status for debugging
+console.log('MongoDB Config Check:');
+console.log('MONGODB_USER:', mongodb_user ? 'SET' : 'MISSING');
+console.log('MONGODB_PASSWORD:', mongodb_password ? 'SET' : 'MISSING');
+console.log('MONGODB_HOST:', mongodb_host ? 'SET' : 'MISSING');
+console.log('MONGODB_DATABASE:', mongodb_database ? 'SET' : 'MISSING');
+
+if (!mongodb_user || !mongodb_password || !mongodb_host || !mongodb_database) {
+    console.error('ERROR: Missing required MongoDB environment variables');
+    process.exit(1);
+}
+
+const mongoUrl = `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_database}?retryWrites=true&w=majority`;
+
 const mongoStore = MongoStore.create({
-    mongoUrl: `mongodb+srv://${mongodb_user}:${mongodb_password}@${mongodb_host}/${mongodb_database}?retryWrites=true&w=majority`,
+    mongoUrl: mongoUrl,
     crypto: {
         secret: mongodb_session_secret
     }
@@ -46,9 +60,15 @@ app.use(
 
 app.use(session({
     secret: node_session_secret,
-    resave: true,
-    saveUninitialized: true,
-    store: mongoStore
+    resave: false,
+    saveUninitialized: false,
+    store: mongoStore,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
 }));
 
 app.use('/api', apiRouter);
