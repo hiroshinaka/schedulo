@@ -261,9 +261,16 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                                                 setInviteQuery('');
                                                 setSuggestions([]);
                                             }}>
-                                                <div>
-                                                    <div className="text-sm font-medium">{s.first_name} {s.last_name}</div>
-                                                    <div className="text-xs text-gray-500">{s.email}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <img 
+                                                        src={s.image_url || '/default-avatar.svg'} 
+                                                        alt={s.first_name}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                    />
+                                                    <div className="text-left">
+                                                        <div className="text-sm font-medium">{s.first_name} {s.last_name}</div>
+                                                        <div className="text-xs text-gray-500">{s.email}</div>
+                                                    </div>
                                                 </div>
                                                 <div className="text-xs text-gray-400">Add</div>
                                             </li>

@@ -4,8 +4,43 @@ CREATE TABLE user (
   last_name varchar(255) DEFAULT NULL,
   email varchar(255) DEFAULT NULL,
   hash_password varchar(255) DEFAULT NULL,
+  image_url varchar(500) DEFAULT NULL,
   PRIMARY KEY (user_id)
 );
+
+CREATE TABLE friend_request_status (
+  status_id INT NOT NULL AUTO_INCREMENT,
+  status_name VARCHAR(50) NOT NULL UNIQUE,
+  PRIMARY KEY (status_id)
+);
+
+INSERT INTO friend_request_status (status_name) VALUES 
+  ('pending'),
+  ('accepted'),
+  ('rejected'),
+  ('cancelled');
+
+CREATE TABLE event_attendee_role (
+  role_id INT NOT NULL AUTO_INCREMENT,
+  role_name VARCHAR(50) NOT NULL UNIQUE,
+  PRIMARY KEY (role_id)
+);
+
+INSERT INTO event_attendee_role (role_name) VALUES 
+  ('owner'),
+  ('guest');
+
+CREATE TABLE event_attendee_status (
+  status_id INT NOT NULL AUTO_INCREMENT,
+  status_name VARCHAR(50) NOT NULL UNIQUE,
+  PRIMARY KEY (status_id)
+);
+
+INSERT INTO event_attendee_status (status_name) VALUES 
+  ('pending'),
+  ('going'),
+  ('maybe'),
+  ('declined');
 
 CREATE TABLE friend (
   friend_id int NOT NULL AUTO_INCREMENT,
@@ -22,12 +57,14 @@ CREATE TABLE friend_request (
   request_id INT NOT NULL AUTO_INCREMENT,
   sender_id INT NOT NULL,
   receiver_id INT NOT NULL,
-  status ENUM('pending', 'accepted', 'rejected', 'cancelled') DEFAULT 'pending',
+  status_id INT NOT NULL DEFAULT 1,
   sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   responded_at DATETIME DEFAULT NULL,
+  read_at DATETIME DEFAULT NULL,
   PRIMARY KEY (request_id),
-  CONSTRAINT fk_sender FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE CASCADE,
-  CONSTRAINT fk_receiver FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_friend_request_sender FOREIGN KEY (sender_id) REFERENCES user(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_friend_request_receiver FOREIGN KEY (receiver_id) REFERENCES user(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_friend_request_status FOREIGN KEY (status_id) REFERENCES friend_request_status(status_id),
   CONSTRAINT uq_request UNIQUE (sender_id, receiver_id)
 );
 
@@ -54,13 +91,13 @@ CREATE TABLE event_attendee (
   event_attendee_id INT NOT NULL AUTO_INCREMENT,
   event_id INT NOT NULL,
   user_id INT NOT NULL,
-  role ENUM('owner', 'guest') DEFAULT 'guest',  -- owner vs invited user
-  status ENUM('pending', 'going', 'maybe', 'declined') DEFAULT 'pending',
-  invited_by  INT DEFAULT NULL,                  -- who sent the invite
+  role_id INT NOT NULL DEFAULT 2,
+  status_id INT NOT NULL DEFAULT 1,
+  invited_by INT DEFAULT NULL,
   invited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   responded_at DATETIME DEFAULT NULL,
   PRIMARY KEY (event_attendee_id),
-  UNIQUE KEY uq_event_user (event_id, user_id),  -- no duplicates
+  UNIQUE KEY uq_event_user (event_id, user_id),
   KEY idx_event_attendee_event (event_id),
   KEY idx_event_attendee_user (user_id),
   CONSTRAINT event_attendee_ibfk_event
@@ -68,6 +105,10 @@ CREATE TABLE event_attendee (
   CONSTRAINT event_attendee_ibfk_user
     FOREIGN KEY (user_id) REFERENCES user (user_id) ON DELETE CASCADE,
   CONSTRAINT event_attendee_ibfk_invited_by
-    FOREIGN KEY (invited_by) REFERENCES user (user_id) ON DELETE SET NULL
+    FOREIGN KEY (invited_by) REFERENCES user (user_id) ON DELETE SET NULL,
+  CONSTRAINT event_attendee_ibfk_role
+    FOREIGN KEY (role_id) REFERENCES event_attendee_role (role_id),
+  CONSTRAINT event_attendee_ibfk_status
+    FOREIGN KEY (status_id) REFERENCES event_attendee_status (status_id)
 );
 

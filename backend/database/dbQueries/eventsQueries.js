@@ -29,10 +29,10 @@ let createEventWithAttendees = async(pool, owner_id, title, start_date, end_date
         );
         const eventId = result.insertId;
 
-        // Insert owner as attendee with role 'owner' and status 'going'
+        // Insert owner as attendee with role_id=1 (owner) and status_id=2 (going)
         await conn.query(
-            `INSERT INTO event_attendee (event_id, user_id, role, status, invited_by, invited_at, responded_at)
-            VALUES (?, ?, 'owner', 'going', ?, NOW(), NULL)`,
+            `INSERT INTO event_attendee (event_id, user_id, role_id, status_id, invited_by, invited_at, responded_at)
+            VALUES (?, ?, 1, 2, ?, NOW(), NULL)`,
             [eventId, owner_id, owner_id]
         );
 
@@ -44,8 +44,8 @@ let createEventWithAttendees = async(pool, owner_id, title, start_date, end_date
                 if (String(a) === String(owner_id)) continue;
                 insertPromises.push(
                     conn.query(
-                        `INSERT INTO event_attendee (event_id, user_id, role, status, invited_by, invited_at)
-                        VALUES (?, ?, 'guest', 'pending', ?, NOW())`,
+                        `INSERT INTO event_attendee (event_id, user_id, role_id, status_id, invited_by, invited_at)
+                        VALUES (?, ?, 2, 1, ?, NOW())`,
                         [eventId, a, owner_id]
                     )
                 );
@@ -79,8 +79,8 @@ let inviteFriendsToEvent =  async(pool, eventId, inviterId, attendees = []) => {
 
         // Ensure owner row exists (upsert-like): attempt insert owner if not exists
         await conn.query(
-            `INSERT IGNORE INTO event_attendee (event_id, user_id, role, status, invited_by, invited_at)
-            VALUES (?, ?, 'owner', 'going', ?, NOW())`,
+            `INSERT IGNORE INTO event_attendee (event_id, user_id, role_id, status_id, invited_by, invited_at)
+            VALUES (?, ?, 1, 2, ?, NOW())`,
             [eventId, inviterId, inviterId]
         );
 
@@ -90,8 +90,8 @@ let inviteFriendsToEvent =  async(pool, eventId, inviterId, attendees = []) => {
                 if (String(a) === String(inviterId)) continue;
                 insertPromises.push(
                     conn.query(
-                        `INSERT IGNORE INTO event_attendee (event_id, user_id, role, status, invited_by, invited_at)
-                        VALUES (?, ?, 'guest', 'pending', ?, NOW())`,
+                        `INSERT IGNORE INTO event_attendee (event_id, user_id, role_id, status_id, invited_by, invited_at)
+                        VALUES (?, ?, 2, 1, ?, NOW())`,
                         [eventId, a, inviterId]
                     )
                 );
