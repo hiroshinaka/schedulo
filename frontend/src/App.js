@@ -7,6 +7,7 @@ import Landing from './components/Landing';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import CalendarPage from './components/CalendarPage';
+import TrashPage from './pages/TrashPage';
 import ChatPage from './pages/ChatPage';
 import Profile from './components/Profile';
 import useAuth from './hooks/useAuth';
@@ -35,6 +36,10 @@ function App() {
               <Route
                 path="/app"
                 element={<RequireAuth><CalendarPage /></RequireAuth>}
+              />
+              <Route
+                path="/app/trash"
+                element={<RequireAuth><TrashPage /></RequireAuth>}
               />
               <Route
                 path="/chat"

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { HexColorPicker } from "react-colorful";
 import API_BASE from '../utils/apiBase';
 
-export default function AddEventModal({isOpen, onClose, onSave}) {
+export default function AddEventModal({isOpen, onClose, onSave, initialEvent = null}) {
     const [title, setTitle] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -28,11 +28,30 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
             setSuggestions([]);
             setInvitedUsers([]);
             setConflicts([]);
+        } else if (isOpen && initialEvent) {
+            // populate fields for editing
+            setTitle(initialEvent.title || '');
+            // inputs expect local datetime-local string; if initialEvent.start is a Date or ISO string, convert
+            try {
+                const s = new Date(initialEvent.start);
+                const e = new Date(initialEvent.end);
+                const toLocalInput = (d) => {
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                };
+                setStartDate(toLocalInput(s));
+                setEndDate(toLocalInput(e));
+            } catch (err) {
+                setStartDate(initialEvent.start || '');
+                setEndDate(initialEvent.end || '');
+            }
+            setRecurrence(initialEvent.recurrence || '');
+            setColor(initialEvent.color || initialEvent.colour || '#aabbcc');
         }
         return () => {
             if (inviteTimer.current) clearTimeout(inviteTimer.current);
         };
-    }, [isOpen]);
+    }, [isOpen, initialEvent]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -53,9 +72,40 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
             return;
         }
 
-        // If there are invited users, call backend create+invite endpoint
+        // If editing, call update endpoint
         try {
-                if (invitedUsers && invitedUsers.length) {
+            const isEditing = initialEvent && initialEvent.id;
+            if (isEditing) {
+                const resp = await fetch(`${API_BASE}/api/events/${initialEvent.id}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: title.trim(),
+                        startDate: startDate,
+                        endDate: endDate,
+                        recurrence: recurrence || '',
+                        color
+                    })
+                });
+                if (!resp.ok) throw new Error('Failed to update event');
+                const data = await resp.json();
+                if (data && data.event) {
+                    const e = data.event;
+                    const eventObj = {
+                        id: e.id,
+                        title: e.title,
+                        start: new Date(e.start_time),
+                        end: new Date(e.end_time),
+                        recurrence: e.recurrence || recurrence || '',
+                        color: e.colour || e.color || color,
+                    };
+                    if (onSave) onSave(eventObj);
+                    return;
+                }
+            }
+
+            if (invitedUsers && invitedUsers.length) {
                 const attendeeIds = invitedUsers.map(u => u.id);
                 // if conflicts exist, prevent submit and show message
                 if (conflicts && conflicts.length) {
@@ -173,7 +223,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                 aria-modal="true"
                 className="relative z-10 w-full max-w-lg bg-white rounded-md shadow-lg p-6"
             >
-                <h3 className="text-lg font-medium mb-4">Add Event</h3>
+                <h3 className="text-lg font-medium mb-4">{initialEvent && initialEvent.id ? 'Edit Event' : 'Add Event'}</h3>
                 <form onSubmit={handleSubmit} className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-3">
                         <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Title</label>
