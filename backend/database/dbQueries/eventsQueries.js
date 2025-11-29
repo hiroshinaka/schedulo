@@ -1,11 +1,24 @@
+let _resolveRecurringTypeId = async (pool, recurring) => {
+    // recurring may be null, a numeric id, or a string name like 'daily'
+    if (!recurring && recurring !== 0) return null;
+    // numeric id
+    if (!isNaN(Number(recurring))) return Number(recurring);
+    // lookup by name
+    const [rows] = await pool.query('SELECT recurring_type_id AS id FROM recurring_type WHERE name = ? LIMIT 1', [String(recurring)]);
+    const set = Array.isArray(rows[0]) ? rows[0] : rows;
+    if (set && set.length) return set[0].id;
+    return null;
+};
+
 let createEvent = async(pool, user_id, title, start_date, end_date, recurring, color) => {
+    const recurring_type_id = await _resolveRecurringTypeId(pool, recurring);
     const [result] = await pool.query(
-        `INSERT INTO event (owner_id, title, location, start_time, end_time, colour, recurring, deleted_at, created_at, updated_at)
+        `INSERT INTO event (owner_id, title, location, start_time, end_time, colour, recurring_type_id, deleted_at, created_at, updated_at)
         VALUES (?, ?, '', ?, ?, ?, ?, NULL, NOW(), NOW());`,
-        [user_id, title, start_date, end_date, color, (recurring && recurring !== '') ? recurring : null]);
+        [user_id, title, start_date, end_date, color, recurring_type_id]);
     const insertId = result.insertId;
     const [rows] = await pool.query(
-        'SELECT event_id AS id, owner_id, title, location, start_time, end_time, colour, recurring AS recurrence, deleted_at, created_at, updated_at FROM event WHERE event_id = ?',
+        'SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, rt.name AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id WHERE e.event_id = ?',
         [insertId]
     );
     if (!rows.length) {
@@ -13,7 +26,7 @@ let createEvent = async(pool, user_id, title, start_date, end_date, recurring, c
     }
     // Attach recurrence info passed in (if DB doesn't yet store it)
     const row = rows[0];
-    if (recurring) row.recurrence = recurring;
+    if (!row.recurrence && recurring) row.recurrence = recurring;
     return row;
 };
 
@@ -22,10 +35,11 @@ let createEventWithAttendees = async(pool, owner_id, title, start_date, end_date
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
+        const recurring_type_id = await _resolveRecurringTypeId(pool, recurring);
         const [result] = await conn.query(
-            `INSERT INTO event (owner_id, title, location, start_time, end_time, colour, recurring, deleted_at, created_at, updated_at)
+            `INSERT INTO event (owner_id, title, location, start_time, end_time, colour, recurring_type_id, deleted_at, created_at, updated_at)
             VALUES (?, ?, '', ?, ?, ?, ?, NULL, NOW(), NOW());`,
-            [owner_id, title, start_date, end_date, color, (recurring && recurring !== '') ? recurring : null]
+            [owner_id, title, start_date, end_date, color, recurring_type_id]
         );
         const eventId = result.insertId;
 
@@ -57,11 +71,11 @@ let createEventWithAttendees = async(pool, owner_id, title, start_date, end_date
 
         // fetch and return created event row
         const [rows] = await pool.query(
-            'SELECT event_id AS id, owner_id, title, location, start_time, end_time, colour, recurring AS recurrence, deleted_at, created_at, updated_at FROM event WHERE event_id = ?',
+            'SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, rt.name AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id WHERE e.event_id = ?',
             [eventId]
         );
         const eventRow = rows[0];
-        if (recurring) eventRow.recurrence = recurring;
+        if (!eventRow.recurrence && recurring) eventRow.recurrence = recurring;
         return eventRow;
     } catch (err) {
         try { await conn.rollback(); } catch (e) { /* ignore */ }
@@ -111,10 +125,9 @@ let inviteFriendsToEvent =  async(pool, eventId, inviterId, attendees = []) => {
 
 let fetchEventsByUserID = async (pool, user_id) => {
     const [rows] = await pool.query(
-        `SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, e.recurring AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e
+        `SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, rt.name AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
         WHERE e.owner_id = ?`,
         [user_id]
-
     );
     return rows;
 };
@@ -148,10 +161,11 @@ let checkUsersBusyForInterval = async (pool, userIds = [], candStart, candEnd) =
     // For each user, fetch their events (owner or attendee) that might be relevant
     for (const u of userIds) {
         const [rows] = await pool.query(
-            `SELECT e.event_id AS event_id, e.start_time AS start_time, e.end_time AS end_time, e.recurring AS recurrence
+            `SELECT e.event_id AS event_id, e.start_time AS start_time, e.end_time AS end_time, rt.name AS recurrence
              FROM event e
              LEFT JOIN event_attendee ea ON e.event_id = ea.event_id
-             WHERE (e.owner_id = ? OR ea.user_id = ?) AND (e.end_time >= ? OR e.recurring IS NOT NULL)`,
+             LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
+             WHERE (e.owner_id = ? OR ea.user_id = ?) AND (e.end_time >= ? OR e.recurring_type_id IS NOT NULL)`,
             [u, u, startDate.toISOString().slice(0,19).replace('T',' ')]
         );
 

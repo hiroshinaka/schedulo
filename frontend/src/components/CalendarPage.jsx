@@ -64,7 +64,8 @@ export default function CalendarPage() {
           start: new Date(e.start_time),
           end: new Date(e.end_time),
           color: e.colour || e.color || null,
-          recurrence: e.recurrence || e.recurring || null,
+          // prefer `recurrence` returned by backend (from recurring_type.name)
+          recurrence: e.recurrence || null,
         }));
         setEventsRaw(mapped);
       }

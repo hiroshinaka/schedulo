@@ -6,7 +6,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
     const [title, setTitle] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [recurring, setRecurring] = useState('');
+    const [recurrence, setRecurrence] = useState('');
     const [color, setColor] = useState('#aabbcc');
     const [inviteQuery, setInviteQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -21,7 +21,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
             setTitle('');
             setStartDate('');
             setEndDate('');
-            setRecurring('');
+            setRecurrence('');
             setError(null);
             setColor('#aabbcc');
             setInviteQuery('');
@@ -55,7 +55,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
 
         // If there are invited users, call backend create+invite endpoint
         try {
-            if (invitedUsers && invitedUsers.length) {
+                if (invitedUsers && invitedUsers.length) {
                 const attendeeIds = invitedUsers.map(u => u.id);
                 // if conflicts exist, prevent submit and show message
                 if (conflicts && conflicts.length) {
@@ -71,7 +71,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                         title: title.trim(),
                         startDate: startDate,
                         endDate: endDate,
-                        recurring: recurring || '',
+                            recurrence: recurrence || '',
                         color,
                         attendees: attendeeIds
                     })
@@ -85,7 +85,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                         title: e.title,
                         start: new Date(e.start_time),
                         end: new Date(e.end_time),
-                        recurrence: e.recurrence || recurring || '',
+                        recurrence: e.recurrence || recurrence || '',
                         color: e.colour || e.color || color,
                     };
                     if (onSave) onSave(eventObj);
@@ -102,7 +102,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                     title: title.trim(),
                     startDate: startDate,
                     endDate: endDate,
-                    recurring: recurring || '',
+                    recurrence: recurrence || '',
                     color
                 })
             });
@@ -115,7 +115,7 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                     title: e.title,
                     start: new Date(e.start_time),
                     end: new Date(e.end_time),
-                    recurrence: e.recurrence || recurring || '',
+                    recurrence: e.recurrence || recurrence || '',
                     color: e.colour || e.color || color,
                 };
                 if (onSave) onSave(eventObj);
@@ -212,9 +212,9 @@ export default function AddEventModal({isOpen, onClose, onSave}) {
                         <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Recurring</label>
                         <div className="sm:col-span-2">
                             <select
-                                id="recurring"
-                                value={recurring}
-                                onChange={(e) => setRecurring(e.target.value)}
+                                        id="recurrence"
+                                        value={recurrence}
+                                        onChange={(e) => setRecurrence(e.target.value)}
                                 className="mt-1 block w-full border bg-white border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                             >
                                 <option value="">Does not repeat</option>

@@ -12,14 +12,15 @@ function requireSessionUser(req, res, next) {
 // Create an event (owner = current user)
 router.post('/', requireSessionUser, async (req, res) => {
     try {
-        const { title, startDate, endDate, recurring, color } = req.body || {};
+        const { title, startDate, endDate, recurring, recurrence, color } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
 
         if (!title || !startDate || !endDate || !color) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const event = await eventQueries.createEvent(pool, uid, title, startDate, endDate, recurring, color);
+        const event = await eventQueries.createEvent(pool, uid, title, startDate, endDate, recurringVal, color);
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events error', err);
@@ -30,7 +31,8 @@ router.post('/', requireSessionUser, async (req, res) => {
 // Create event and invite attendees in one request
 router.post('/invite', requireSessionUser, async (req, res) => {
     try {
-        const { title, startDate, endDate, recurring, color, attendees } = req.body || {};
+        const { title, startDate, endDate, recurring, recurrence, color, attendees } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
 
         if (!title || !startDate || !endDate || !color) {
@@ -50,7 +52,7 @@ router.post('/invite', requireSessionUser, async (req, res) => {
             }
         }
 
-        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurring, color, inviteeIds || []);
+        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurringVal, color, inviteeIds || []);
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events/invite error', err);
