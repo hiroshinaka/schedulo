@@ -94,6 +94,24 @@ router.post('/:eventId/invite', requireSessionUser, async (req, res) => {
     }
 });
 
+// Update an event (owner only)
+router.put('/:eventId', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { title, startDate, endDate, recurring, recurrence, color } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        if (!title || !startDate || !endDate || !color) return res.status(400).json({ error: 'Missing required fields' });
+        const updated = await eventQueries.updateEvent(pool, eventId, uid, title, startDate, endDate, recurringVal, color);
+        if (!updated) return res.status(404).json({ error: 'not found or not permitted' });
+        return res.json({ event: updated });
+    } catch (err) {
+        console.error('PUT /api/events/:eventId error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
 // List events for the current session user
 router.get('/', requireSessionUser, async (req, res) => {
     try {
@@ -226,6 +244,79 @@ router.post('/availability', requireSessionUser, async (req, res) => {
         return res.json({ slots });
     } catch (err) {
         console.error('POST /api/events/availability error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// List deleted events (trash) for current user
+router.get('/trash', requireSessionUser, async (req, res) => {
+    try {
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        const rows = await eventQueries.fetchDeletedEventsByUserID(pool, uid);
+        const events = (rows || []).map(r => ({
+            id: r.id,
+            title: r.title,
+            start_time: r.start_time,
+            end_time: r.end_time,
+            colour: r.colour,
+            recurrence: r.recurrence || null,
+            deleted_at: r.deleted_at
+        }));
+        return res.json({ events });
+    } catch (err) {
+        console.error('GET /api/events/trash error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Soft-delete an event (mark deleted_at). Only owner may delete.
+router.delete('/:eventId', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        const ok = await eventQueries.softDeleteEvent(pool, eventId, uid);
+        if (!ok) return res.status(404).json({ error: 'not found or already deleted' });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('DELETE /api/events/:eventId error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Restore a soft-deleted event (only if not older than 30 days)
+router.post('/:eventId/restore', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        const result = await eventQueries.restoreEvent(pool, eventId, uid, 30);
+        if (!result.ok) {
+            if (result.reason === 'too_old') return res.status(410).json({ error: 'cannot restore, too old' });
+            if (result.reason === 'not_deleted') return res.status(400).json({ error: 'event is not deleted' });
+            return res.status(404).json({ error: 'not found' });
+        }
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('POST /api/events/:eventId/restore error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Purge old deleted events (permanently). This is intended for admin/cron use.
+router.post('/purge-old', async (req, res) => {
+    try {
+        // optional safeguard: require ADMIN_SECRET env var to be sent
+        const secret = process.env.ADMIN_SECRET || null;
+        if (secret) {
+            const provided = req.headers['x-admin-secret'] || req.body && req.body.adminSecret;
+            if (!provided || String(provided) !== String(secret)) return res.status(403).json({ error: 'forbidden' });
+        }
+        const days = Number(req.body && req.body.days) || 30;
+        const deleted = await eventQueries.purgeOldDeletedEvents(pool, days);
+        return res.json({ deleted });
+    } catch (err) {
+        console.error('POST /api/events/purge-old error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
 });
