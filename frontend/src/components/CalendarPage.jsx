@@ -4,10 +4,12 @@ import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
 import format from 'date-fns/format';
 import parse from 'date-fns/parse';
 import startOfWeek from 'date-fns/startOfWeek';
+import endOfWeek from 'date-fns/endOfWeek';
 import getDay from 'date-fns/getDay';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import AddEventModal from './AddEventModal';
+import EventDetailsModal from './EventDetailsModal';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -47,10 +49,16 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]); // displayed events (including expanded recurrences)
   const [date, setDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [range, setRange] = useState(() => {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    // Use the visible calendar range (start of week containing 1st to end of week containing last day)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const start = startOfWeek(monthStart);
+    const end = endOfWeek(monthEnd);
     return { start, end };
   });
 
@@ -75,8 +83,51 @@ export default function CalendarPage() {
   const handleAddEvent = (newEvent) => {
     // if backend returned an id, use it; otherwise assign a local id
     const id = (newEvent && newEvent.id !== undefined) ? newEvent.id : (events.length ? Math.max(...events.map((e) => e.id)) + 1 : 0);
+    // if editingEvent exists (we were updating), replace existing
+    if (editingEvent && editingEvent.id) {
+      setEventsRaw(prev => {
+        const next = (prev || []).map(ev => (String(ev.id) === String(newEvent.id) ? { ...ev, ...newEvent } : ev));
+        const expanded = expandRecurringEvents(next, range.start, range.end);
+        setEvents(expanded.length ? expanded : next);
+        return next;
+      });
+      setEditingEvent(null);
+      setIsModalOpen(false);
+      return;
+    }
+
     setEvents((prev) => [...prev, { ...newEvent, id }]);
     setIsModalOpen(false);
+  };
+
+  const handleEventClick = (evt) => {
+    // evt has start/end/title/id; map to our internal shape
+    setSelectedEvent({
+      id: evt.id,
+      title: evt.title,
+      start: evt.start,
+      end: evt.end,
+      recurrence: evt.recurrence || null,
+      color: evt.color || evt.colour || null
+    });
+    setIsDetailsOpen(true);
+  };
+
+  const handleEditFromDetails = (evt) => {
+    // open AddEventModal prefilled
+    setEditingEvent(evt);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteSuccess = (deletedId) => {
+    // remove from raw events and recompute displayed
+    setEventsRaw(prev => {
+      const next = (prev || []).filter(e => String(e.id) !== String(deletedId));
+      // recompute expanded events
+      const expanded = expandRecurringEvents(next, range.start, range.end);
+      setEvents(expanded.length ? expanded : next);
+      return next;
+    });
   };
 
   // when raw events or visible range changes, compute displayed events
@@ -202,6 +253,7 @@ export default function CalendarPage() {
         <BigCalendar
           localizer={localizer}
           events={events}
+          onSelectEvent={handleEventClick}
           startAccessor="start"
           endAccessor="end"
           view={view}
@@ -216,8 +268,16 @@ export default function CalendarPage() {
         />
         <AddEventModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          initialEvent={editingEvent}
+          onClose={() => { setIsModalOpen(false); setEditingEvent(null); }}
           onSave={handleAddEvent}
+        />
+        <EventDetailsModal
+          isOpen={isDetailsOpen}
+          event={selectedEvent}
+          onClose={() => setIsDetailsOpen(false)}
+          onDeleteSuccess={handleDeleteSuccess}
+          onEdit={handleEditFromDetails}
         />
       </div>
     </div>
