@@ -22,4 +22,13 @@ let getUserByEmail = async(pool, email) => {
     );
     return rows[0];
 };
-module.exports = {createUser, getUserByEmail};
+
+let getUserById = async (pool, id) => {
+    const [rows] = await pool.query(
+        'SELECT user_id AS id, first_name, last_name, email FROM `user` WHERE user_id = ?',
+        [id]
+    );
+    return rows[0];
+};
+
+module.exports = {createUser, getUserByEmail, getUserById};
