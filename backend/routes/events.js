@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/sqlConnections.js');
 const eventQueries = require('../database/dbQueries/eventsQueries.js');
-const { getBusyIntervalsForUsers, checkUsersBusyForInterval } = require('../database/dbQueries/eventsQueries.js');
+const { getBusyIntervalsForUsers, checkUsersBusyForInterval, fetchEventInvitesByUserID, respondToEventInvite } = require('../database/dbQueries/eventsQueries.js');
 
 function requireSessionUser(req, res, next) {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'unauthenticated' });
@@ -136,6 +136,46 @@ router.get('/', requireSessionUser, async (req, res) => {
         res.status(500).json({ error: err.message || 'server error' });
     }
     });
+
+// List event invites for the current session user (defaults to pending only)
+router.get('/invites', requireSessionUser, async (req, res) => {
+    try {
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        // optionally accept a comma-separated list of status ids, e.g. "1,2,3"
+        const statusParam = req.query.statuses;
+        let statuses = [1];
+        if (statusParam) {
+            statuses = String(statusParam)
+                .split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(n => !isNaN(n));
+            if (!statuses.length) statuses = [1];
+        }
+
+        const rows = await fetchEventInvitesByUserID(pool, uid, statuses);
+        const invites = (rows || []).map(r => ({
+            id: r.id,
+            event_id: r.event_id,
+            user_id: r.user_id,
+            role_id: r.role_id,
+            status_id: r.status_id,
+            status_name: r.status_name,
+            invited_by: r.invited_by,
+            invited_by_first_name: r.invited_by_first_name,
+            invited_by_last_name: r.invited_by_last_name,
+            invited_at: r.invited_at,
+            responded_at: r.responded_at,
+            event_title: r.event_title,
+            event_location: r.event_location,
+            start_time: r.start_time,
+            end_time: r.end_time,
+        }));
+        return res.json({ invites });
+    } catch (err) {
+        console.error('GET /api/events/invites error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
 
 // Find availability for a list of users
 router.post('/availability', requireSessionUser, async (req, res) => {
@@ -317,6 +357,29 @@ router.post('/purge-old', async (req, res) => {
         return res.json({ deleted });
     } catch (err) {
         console.error('POST /api/events/purge-old error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Respond to an event invite (update status_id for the attendee row)
+// Expected body: { status_id: number } where 1=pending, 2=going, 3=maybe, 4=not going
+router.post('/invites/:eventAttendeeId/respond', requireSessionUser, async (req, res) => {
+    try {
+        const { eventAttendeeId } = req.params;
+        const { status_id } = req.body || {};
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+
+        if (!eventAttendeeId) return res.status(400).json({ error: 'eventAttendeeId required' });
+        const newStatus = parseInt(status_id, 10);
+        if (![1, 2, 3, 4].includes(newStatus)) {
+            return res.status(400).json({ error: 'invalid status_id' });
+        }
+
+        const ok = await respondToEventInvite(pool, eventAttendeeId, uid, newStatus);
+        if (!ok) return res.status(404).json({ error: 'invite not found or not permitted' });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('POST /api/events/invites/:eventAttendeeId/respond error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
 });

@@ -141,6 +141,55 @@ let fetchDeletedEventsByUserID = async (pool, user_id) => {
     return rows;
 };
 
+// Fetch pending (or any status) event invites for a user, including basic event + inviter info
+let fetchEventInvitesByUserID = async (pool, user_id, statuses = [1]) => {
+    // statuses is an array of status_id values (1=pending, 2=going, 3=maybe, 4=not going, etc.)
+    const statusPlaceholders = statuses.map(() => '?').join(',');
+    const params = [user_id, ...statuses];
+
+    const sql = `
+        SELECT
+            ea.event_attendee_id AS id,
+            ea.event_id,
+            ea.user_id,
+            ea.role_id,
+            ea.status_id,
+            ea.invited_by,
+            ea.invited_at,
+            ea.responded_at,
+            eas.status_name,
+            e.title AS event_title,
+            e.location AS event_location,
+            e.start_time,
+            e.end_time,
+            inv.first_name AS invited_by_first_name,
+            inv.last_name AS invited_by_last_name
+        FROM event_attendee ea
+        JOIN event e ON ea.event_id = e.event_id
+        JOIN event_attendee_status eas ON ea.status_id = eas.status_id
+        LEFT JOIN user inv ON ea.invited_by = inv.user_id
+        WHERE ea.user_id = ?
+          AND ea.status_id IN (${statusPlaceholders})
+          AND e.deleted_at IS NULL
+        ORDER BY ea.invited_at DESC
+    `;
+
+    const [rows] = await pool.query(sql, params);
+    return rows;
+};
+
+// Update an invite's status (going/maybe/not going, etc.) for a specific attendee row
+let respondToEventInvite = async (pool, eventAttendeeId, userId, newStatusId) => {
+    // Only allow the invitee themselves to update their status
+    const [res] = await pool.query(
+        `UPDATE event_attendee
+         SET status_id = ?, status = ?, responded_at = NOW()
+         WHERE event_attendee_id = ? AND user_id = ?`,
+        [newStatusId, newStatusId, eventAttendeeId, userId]
+    );
+    return res.affectedRows > 0;
+};
+
 // Fetch busy intervals (start_time, end_time) for any of the given user IDs within a time range
 let getBusyIntervalsForUsers = async (pool, userIds = [], rangeStart, rangeEnd) => {
     if (!Array.isArray(userIds) || userIds.length === 0) return [];
@@ -277,7 +326,9 @@ module.exports = {
     fetchDeletedEventsByUserID,
     softDeleteEvent,
     restoreEvent,
-    purgeOldDeletedEvents
+    purgeOldDeletedEvents,
+    fetchEventInvitesByUserID,
+    respondToEventInvite
 };
 
 // Update an event (owner only). Returns updated row or null.
