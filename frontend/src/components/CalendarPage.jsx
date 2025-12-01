@@ -74,6 +74,13 @@ export default function CalendarPage() {
           color: e.colour || e.color || null,
           // prefer `recurrence` returned by backend (from recurring_type.name)
           recurrence: e.recurrence || null,
+          is_invited: !!e.is_invited,
+          owner_id: e.owner_id,
+          attendee_id: e.attendee_id,
+          attendee_status_id: e.attendee_status_id,
+          attendee_status_name: e.attendee_status_name,
+          inviter_first_name: e.inviter_first_name || null,
+          inviter_last_name: e.inviter_last_name || null,
         }));
         setEventsRaw(mapped);
       }
@@ -108,7 +115,15 @@ export default function CalendarPage() {
       start: evt.start,
       end: evt.end,
       recurrence: evt.recurrence || null,
-      color: evt.color || evt.colour || null
+      color: evt.color || evt.colour || null,
+      is_invited: !!evt.is_invited,
+      owner_id: evt.owner_id,
+      attendee_id: evt.attendee_id,
+      attendee_status_id: evt.attendee_status_id,
+      attendee_status_name: evt.attendee_status_name,
+      inviter_name: evt.inviter_first_name || evt.inviter_last_name
+        ? `${evt.inviter_first_name || ''} ${evt.inviter_last_name || ''}`.trim()
+        : null,
     });
     setIsDetailsOpen(true);
   };
@@ -130,6 +145,24 @@ export default function CalendarPage() {
     });
   };
 
+  // when an invitee updates their status from the details modal, update local state
+  const handleStatusChange = (eventId, attendeeId, attendeeStatusId) => {
+    setEventsRaw(prev => {
+      const next = (prev || []).map(e =>
+        String(e.id) === String(eventId)
+          ? { ...e, attendee_id: attendeeId, attendee_status_id: attendeeStatusId }
+          : e
+      );
+      const expanded = expandRecurringEvents(next, range.start, range.end);
+      setEvents(expanded.length ? expanded : next);
+      return next;
+    });
+    setSelectedEvent(prev => prev && String(prev.id) === String(eventId)
+      ? { ...prev, attendee_id: attendeeId, attendee_status_id: attendeeStatusId }
+      : prev
+    );
+  };
+
   // when raw events or visible range changes, compute displayed events
   useEffect(() => {
     if (!eventsRaw || !eventsRaw.length) return;
@@ -144,7 +177,10 @@ export default function CalendarPage() {
       borderRadius: '6px',
       color: '#ffffff',
       border: 'none',
-      padding: '2px 4px'
+      padding: '2px 4px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
     };
     return { style };
   };
@@ -262,6 +298,19 @@ export default function CalendarPage() {
           onNavigate={(newDate) => setDate(newDate)}
           onRangeChange={handleRangeChange}
           eventPropGetter={eventStyleGetter}
+          components={{
+            event: ({ event }) => {
+              let prefix = '';
+              if (event.is_invited) {
+                // map attendee status to an emoji
+                if (event.attendee_status_id === 2 || event.attendee_status_name === 'going') prefix = '✅ ';
+                else if (event.attendee_status_id === 3 || event.attendee_status_name === 'maybe') prefix = '🤔 ';
+                else if (event.attendee_status_id === 4 || event.attendee_status_name === 'declined') prefix = '❌ ';
+                else prefix = '📩 ';
+              }
+              return <span>{prefix}{event.title}</span>;
+            },
+          }}
           selectable
           style={{ height: 600 }}
           defaultDate={new Date()}
@@ -278,6 +327,7 @@ export default function CalendarPage() {
           onClose={() => setIsDetailsOpen(false)}
           onDeleteSuccess={handleDeleteSuccess}
           onEdit={handleEditFromDetails}
+          onStatusChange={handleStatusChange}
         />
       </div>
     </div>

@@ -43,7 +43,18 @@ export default function Header() {
 				<Link to="/" className="flex items-center gap-3">
 					<img src={logo} alt="Schedulo" style={{ width: 40, backgroundColor: 'var(--brand-contrast)', borderRadius: 6 }} />
 				</Link>
-
+				<Link to="/app/invites" className="relative brand-text hover:underline">
+					Event Invites
+					{pendingCount > 0 && (
+						<span className="absolute -top-2 -right-10 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+							{pendingCount}
+						</span>
+					)}
+				</Link>
+				<Link to="/chat" className="relative brand-text hover:underline">
+					Chat
+				</Link>
+				<Link to="/app/trash" className="relative brand-text hover:underline">Trash </Link>
 				<nav className="flex items-center gap-3">
 					{loggedIn ? (
 						<>
@@ -69,6 +80,7 @@ export default function Header() {
 						</>
 					) : (
 						<>
+
 							<Link to="/login" className="text-sm brand-text hover:underline">Login</Link>
 							<Link to="/signup" className="ml-2 inline-flex items-center px-4 py-2" style={{ backgroundColor: 'var(--brand-contrast)', color: 'var(--brand-main)', border: '1px solid rgba(10,22,83,0.08)', borderRadius: 6, fontSize: 14 }}>Sign Up</Link>
 						</>

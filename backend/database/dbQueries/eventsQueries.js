@@ -124,10 +124,40 @@ let inviteFriendsToEvent =  async(pool, eventId, inviterId, attendees = []) => {
 };
 
 let fetchEventsByUserID = async (pool, user_id) => {
+    // Return events the user owns OR is attending (any status), excluding deleted,
+    // and include the attendee status for the current user when present.
     const [rows] = await pool.query(
-        `SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, rt.name AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
-        WHERE e.owner_id = ? AND e.deleted_at IS NULL`,
-        [user_id]
+                `SELECT DISTINCT
+                     e.event_id AS id,
+                     e.owner_id,
+                     e.title,
+                     e.location,
+                     e.start_time,
+                     e.end_time,
+                     e.colour,
+                     rt.name AS recurrence,
+                     e.deleted_at,
+                     e.created_at,
+                     e.updated_at,
+                     ea.status_id AS attendee_status_id,
+                     eas.status_name AS attendee_status_name,
+                     ea.event_attendee_id AS attendee_id,
+                     inv.first_name AS inviter_first_name,
+                     inv.last_name AS inviter_last_name
+                 FROM event e
+                 LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
+                 LEFT JOIN event_attendee ea
+                     ON e.event_id = ea.event_id AND ea.user_id = ?
+                 LEFT JOIN event_attendee_status eas
+                     ON ea.status_id = eas.status_id
+                 LEFT JOIN user inv
+                     ON ea.invited_by = inv.user_id
+         WHERE e.deleted_at IS NULL
+           AND (
+             e.owner_id = ?
+             OR ea.user_id = ?
+           )`,
+        [user_id, user_id, user_id]
     );
     return rows;
 };
@@ -139,6 +169,55 @@ let fetchDeletedEventsByUserID = async (pool, user_id) => {
         [user_id]
     );
     return rows;
+};
+
+// Fetch pending (or any status) event invites for a user, including basic event + inviter info
+let fetchEventInvitesByUserID = async (pool, user_id, statuses = [1]) => {
+    // statuses is an array of status_id values (1=pending, 2=going, 3=maybe, 4=not going, etc.)
+    const statusPlaceholders = statuses.map(() => '?').join(',');
+    const params = [user_id, ...statuses];
+
+    const sql = `
+        SELECT
+            ea.event_attendee_id AS id,
+            ea.event_id,
+            ea.user_id,
+            ea.role_id,
+            ea.status_id,
+            ea.invited_by,
+            ea.invited_at,
+            ea.responded_at,
+            eas.status_name,
+            e.title AS event_title,
+            e.location AS event_location,
+            e.start_time,
+            e.end_time,
+            inv.first_name AS invited_by_first_name,
+            inv.last_name AS invited_by_last_name
+        FROM event_attendee ea
+        JOIN event e ON ea.event_id = e.event_id
+        JOIN event_attendee_status eas ON ea.status_id = eas.status_id
+        LEFT JOIN user inv ON ea.invited_by = inv.user_id
+        WHERE ea.user_id = ?
+          AND ea.status_id IN (${statusPlaceholders})
+          AND e.deleted_at IS NULL
+        ORDER BY ea.invited_at DESC
+    `;
+
+    const [rows] = await pool.query(sql, params);
+    return rows;
+};
+
+// Update an invite's status (going/maybe/not going, etc.) for a specific attendee row
+let respondToEventInvite = async (pool, eventAttendeeId, userId, newStatusId) => {
+    // Only allow the invitee themselves to update their status
+    const [res] = await pool.query(
+        `UPDATE event_attendee
+         SET status_id = ?, status = ?, responded_at = NOW()
+         WHERE event_attendee_id = ? AND user_id = ?`,
+        [newStatusId, newStatusId, eventAttendeeId, userId]
+    );
+    return res.affectedRows > 0;
 };
 
 // Fetch busy intervals (start_time, end_time) for any of the given user IDs within a time range
@@ -277,7 +356,9 @@ module.exports = {
     fetchDeletedEventsByUserID,
     softDeleteEvent,
     restoreEvent,
-    purgeOldDeletedEvents
+    purgeOldDeletedEvents,
+    fetchEventInvitesByUserID,
+    respondToEventInvite
 };
 
 // Update an event (owner only). Returns updated row or null.
