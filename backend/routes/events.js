@@ -117,25 +117,30 @@ router.get('/', requireSessionUser, async (req, res) => {
     try {
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
         const rows = await eventQueries.fetchEventsByUserID(pool, uid);
-        // Map DB rows to frontend-friendly event objects
+        // Map DB rows to frontend-friendly event objects, including invite status
         const events = (rows || []).map(r => ({
             id: r.id,
             title: r.title,
             owner_id: r.owner_id,
-            owner_first_name: r.owner_first_name,
-            owner_last_name: r.owner_last_name,
             start_time: r.start_time,
             end_time: r.end_time,
             colour: r.colour,
             recurrence: r.recurrence || null,
-            attendance_status: r.attendance_status,
+            // attendee status for the current user, if any
+            attendee_id: r.attendee_id || null,
+            attendee_status_id: r.attendee_status_id || null,
+            attendee_status_name: r.attendee_status_name || null,
+            inviter_first_name: r.inviter_first_name || null,
+            inviter_last_name: r.inviter_last_name || null,
+            // mark invited vs owned for calendar styling
+            is_invited: String(r.owner_id) !== String(uid),
         }));
         return res.json({ events });
-        } catch (err) {
+    } catch (err) {
         console.error('GET /api/events error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
-    });
+});
 
 // List event invites for the current session user (defaults to pending only)
 router.get('/invites', requireSessionUser, async (req, res) => {

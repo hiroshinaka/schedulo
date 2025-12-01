@@ -124,10 +124,40 @@ let inviteFriendsToEvent =  async(pool, eventId, inviterId, attendees = []) => {
 };
 
 let fetchEventsByUserID = async (pool, user_id) => {
+    // Return events the user owns OR is attending (any status), excluding deleted,
+    // and include the attendee status for the current user when present.
     const [rows] = await pool.query(
-        `SELECT e.event_id AS id, e.owner_id, e.title, e.location, e.start_time, e.end_time, e.colour, rt.name AS recurrence, e.deleted_at, e.created_at, e.updated_at FROM event e LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
-        WHERE e.owner_id = ? AND e.deleted_at IS NULL`,
-        [user_id]
+                `SELECT DISTINCT
+                     e.event_id AS id,
+                     e.owner_id,
+                     e.title,
+                     e.location,
+                     e.start_time,
+                     e.end_time,
+                     e.colour,
+                     rt.name AS recurrence,
+                     e.deleted_at,
+                     e.created_at,
+                     e.updated_at,
+                     ea.status_id AS attendee_status_id,
+                     eas.status_name AS attendee_status_name,
+                     ea.event_attendee_id AS attendee_id,
+                     inv.first_name AS inviter_first_name,
+                     inv.last_name AS inviter_last_name
+                 FROM event e
+                 LEFT JOIN recurring_type rt ON e.recurring_type_id = rt.recurring_type_id
+                 LEFT JOIN event_attendee ea
+                     ON e.event_id = ea.event_id AND ea.user_id = ?
+                 LEFT JOIN event_attendee_status eas
+                     ON ea.status_id = eas.status_id
+                 LEFT JOIN user inv
+                     ON ea.invited_by = inv.user_id
+         WHERE e.deleted_at IS NULL
+           AND (
+             e.owner_id = ?
+             OR ea.user_id = ?
+           )`,
+        [user_id, user_id, user_id]
     );
     return rows;
 };
