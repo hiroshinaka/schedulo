@@ -316,8 +316,6 @@ let checkUsersBusyForInterval = async (pool, userIds = [], candStart, candEnd) =
     return conflicts;
 };
 
-module.exports = {createEvent, createEventWithAttendees, inviteFriendsToEvent, fetchEventsByUserID, getBusyIntervalsForUsers, checkUsersBusyForInterval};
-
 // Soft-delete an event (mark deleted_at). Only the owner may delete.
 let softDeleteEvent = async (pool, eventId, ownerId) => {
     const [res] = await pool.query('UPDATE event SET deleted_at = NOW() WHERE event_id = ? AND owner_id = ? AND deleted_at IS NULL', [eventId, ownerId]);
@@ -346,21 +344,6 @@ let purgeOldDeletedEvents = async (pool, olderThanDays = 30) => {
     return res.affectedRows || 0;
 };
 
-module.exports = {
-    createEvent,
-    createEventWithAttendees,
-    inviteFriendsToEvent,
-    fetchEventsByUserID,
-    getBusyIntervalsForUsers,
-    checkUsersBusyForInterval,
-    fetchDeletedEventsByUserID,
-    softDeleteEvent,
-    restoreEvent,
-    purgeOldDeletedEvents,
-    fetchEventInvitesByUserID,
-    respondToEventInvite
-};
-
 // Update an event (owner only). Returns updated row or null.
 let updateEvent = async (pool, eventId, ownerId, title, start_date, end_date, recurring, color) => {
     const recurring_type_id = await _resolveRecurringTypeId(pool, recurring);
@@ -377,5 +360,18 @@ let updateEvent = async (pool, eventId, ownerId, title, start_date, end_date, re
     return (rows && rows[0]) ? rows[0] : null;
 };
 
-// add updateEvent to exports
-module.exports.updateEvent = updateEvent;
+module.exports = {
+    createEvent,
+    createEventWithAttendees,
+    inviteFriendsToEvent,
+    fetchEventsByUserID,
+    getBusyIntervalsForUsers,
+    checkUsersBusyForInterval,
+    fetchDeletedEventsByUserID,
+    softDeleteEvent,
+    restoreEvent,
+    purgeOldDeletedEvents,
+    fetchEventInvitesByUserID,
+    respondToEventInvite,
+    updateEvent,
+};
