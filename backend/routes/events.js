@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/sqlConnections.js');
 const eventQueries = require('../database/dbQueries/eventsQueries.js');
-const { getBusyIntervalsForUsers, checkUsersBusyForInterval } = require('../database/dbQueries/eventsQueries.js');
+const { getBusyIntervalsForUsers, checkUsersBusyForInterval, fetchEventInvitesByUserID, respondToEventInvite } = require('../database/dbQueries/eventsQueries.js');
 
 function requireSessionUser(req, res, next) {
     if (!req.session || !req.session.user) return res.status(401).json({ error: 'unauthenticated' });
@@ -12,14 +12,15 @@ function requireSessionUser(req, res, next) {
 // Create an event (owner = current user)
 router.post('/', requireSessionUser, async (req, res) => {
     try {
-        const { title, startDate, endDate, recurring, color } = req.body || {};
+        const { title, startDate, endDate, recurring, recurrence, color } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
 
         if (!title || !startDate || !endDate || !color) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const event = await eventQueries.createEvent(pool, uid, title, startDate, endDate, recurring, color);
+        const event = await eventQueries.createEvent(pool, uid, title, startDate, endDate, recurringVal, color);
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events error', err);
@@ -30,7 +31,8 @@ router.post('/', requireSessionUser, async (req, res) => {
 // Create event and invite attendees in one request
 router.post('/invite', requireSessionUser, async (req, res) => {
     try {
-        const { title, startDate, endDate, recurring, color, attendees } = req.body || {};
+        const { title, startDate, endDate, recurring, recurrence, color, attendees } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
 
         if (!title || !startDate || !endDate || !color) {
@@ -50,7 +52,7 @@ router.post('/invite', requireSessionUser, async (req, res) => {
             }
         }
 
-        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurring, color, inviteeIds || []);
+        const event = await eventQueries.createEventWithAttendees(pool, uid, title, startDate, endDate, recurringVal, color, inviteeIds || []);
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events/invite error', err);
@@ -92,30 +94,93 @@ router.post('/:eventId/invite', requireSessionUser, async (req, res) => {
     }
 });
 
+// Update an event (owner only)
+router.put('/:eventId', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { title, startDate, endDate, recurring, recurrence, color } = req.body || {};
+        const recurringVal = (recurrence !== undefined && recurrence !== null) ? recurrence : recurring;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        if (!title || !startDate || !endDate || !color) return res.status(400).json({ error: 'Missing required fields' });
+        const updated = await eventQueries.updateEvent(pool, eventId, uid, title, startDate, endDate, recurringVal, color);
+        if (!updated) return res.status(404).json({ error: 'not found or not permitted' });
+        return res.json({ event: updated });
+    } catch (err) {
+        console.error('PUT /api/events/:eventId error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
 // List events for the current session user
 router.get('/', requireSessionUser, async (req, res) => {
     try {
         const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
         const rows = await eventQueries.fetchEventsByUserID(pool, uid);
-        // Map DB rows to frontend-friendly event objects
+        // Map DB rows to frontend-friendly event objects, including invite status
         const events = (rows || []).map(r => ({
             id: r.id,
             title: r.title,
             owner_id: r.owner_id,
-            owner_first_name: r.owner_first_name,
-            owner_last_name: r.owner_last_name,
             start_time: r.start_time,
             end_time: r.end_time,
             colour: r.colour,
             recurrence: r.recurrence || null,
-            attendance_status: r.attendance_status,
+            // attendee status for the current user, if any
+            attendee_id: r.attendee_id || null,
+            attendee_status_id: r.attendee_status_id || null,
+            attendee_status_name: r.attendee_status_name || null,
+            inviter_first_name: r.inviter_first_name || null,
+            inviter_last_name: r.inviter_last_name || null,
+            // mark invited vs owned for calendar styling
+            is_invited: String(r.owner_id) !== String(uid),
         }));
         return res.json({ events });
-        } catch (err) {
+    } catch (err) {
         console.error('GET /api/events error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
-    });
+});
+
+// List event invites for the current session user (defaults to pending only)
+router.get('/invites', requireSessionUser, async (req, res) => {
+    try {
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        // optionally accept a comma-separated list of status ids, e.g. "1,2,3"
+        const statusParam = req.query.statuses;
+        let statuses = [1];
+        if (statusParam) {
+            statuses = String(statusParam)
+                .split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(n => !isNaN(n));
+            if (!statuses.length) statuses = [1];
+        }
+
+        const rows = await fetchEventInvitesByUserID(pool, uid, statuses);
+        const invites = (rows || []).map(r => ({
+            id: r.id,
+            event_id: r.event_id,
+            user_id: r.user_id,
+            role_id: r.role_id,
+            status_id: r.status_id,
+            status_name: r.status_name,
+            invited_by: r.invited_by,
+            invited_by_first_name: r.invited_by_first_name,
+            invited_by_last_name: r.invited_by_last_name,
+            invited_at: r.invited_at,
+            responded_at: r.responded_at,
+            event_title: r.event_title,
+            event_location: r.event_location,
+            start_time: r.start_time,
+            end_time: r.end_time,
+        }));
+        return res.json({ invites });
+    } catch (err) {
+        console.error('GET /api/events/invites error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
 
 // Find availability for a list of users
 router.post('/availability', requireSessionUser, async (req, res) => {
@@ -224,6 +289,102 @@ router.post('/availability', requireSessionUser, async (req, res) => {
         return res.json({ slots });
     } catch (err) {
         console.error('POST /api/events/availability error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// List deleted events (trash) for current user
+router.get('/trash', requireSessionUser, async (req, res) => {
+    try {
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        const rows = await eventQueries.fetchDeletedEventsByUserID(pool, uid);
+        const events = (rows || []).map(r => ({
+            id: r.id,
+            title: r.title,
+            start_time: r.start_time,
+            end_time: r.end_time,
+            colour: r.colour,
+            recurrence: r.recurrence || null,
+            deleted_at: r.deleted_at
+        }));
+        return res.json({ events });
+    } catch (err) {
+        console.error('GET /api/events/trash error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Soft-delete an event (mark deleted_at). Only owner may delete.
+router.delete('/:eventId', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        const ok = await eventQueries.softDeleteEvent(pool, eventId, uid);
+        if (!ok) return res.status(404).json({ error: 'not found or already deleted' });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('DELETE /api/events/:eventId error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Restore a soft-deleted event (only if not older than 30 days)
+router.post('/:eventId/restore', requireSessionUser, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        if (!eventId) return res.status(400).json({ error: 'eventId required' });
+        const result = await eventQueries.restoreEvent(pool, eventId, uid, 30);
+        if (!result.ok) {
+            if (result.reason === 'too_old') return res.status(410).json({ error: 'cannot restore, too old' });
+            if (result.reason === 'not_deleted') return res.status(400).json({ error: 'event is not deleted' });
+            return res.status(404).json({ error: 'not found' });
+        }
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('POST /api/events/:eventId/restore error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Purge old deleted events (permanently). This is intended for admin/cron use.
+router.post('/purge-old', async (req, res) => {
+    try {
+        // optional safeguard: require ADMIN_SECRET env var to be sent
+        const secret = process.env.ADMIN_SECRET || null;
+        if (secret) {
+            const provided = req.headers['x-admin-secret'] || req.body && req.body.adminSecret;
+            if (!provided || String(provided) !== String(secret)) return res.status(403).json({ error: 'forbidden' });
+        }
+        const days = Number(req.body && req.body.days) || 30;
+        const deleted = await eventQueries.purgeOldDeletedEvents(pool, days);
+        return res.json({ deleted });
+    } catch (err) {
+        console.error('POST /api/events/purge-old error', err);
+        res.status(500).json({ error: err.message || 'server error' });
+    }
+});
+
+// Respond to an event invite (update status_id for the attendee row)
+// Expected body: { status_id: number } where 1=pending, 2=going, 3=maybe, 4=not going
+router.post('/invites/:eventAttendeeId/respond', requireSessionUser, async (req, res) => {
+    try {
+        const { eventAttendeeId } = req.params;
+        const { status_id } = req.body || {};
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+
+        if (!eventAttendeeId) return res.status(400).json({ error: 'eventAttendeeId required' });
+        const newStatus = parseInt(status_id, 10);
+        if (![1, 2, 3, 4].includes(newStatus)) {
+            return res.status(400).json({ error: 'invalid status_id' });
+        }
+
+        const ok = await respondToEventInvite(pool, eventAttendeeId, uid, newStatus);
+        if (!ok) return res.status(404).json({ error: 'invite not found or not permitted' });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('POST /api/events/invites/:eventAttendeeId/respond error', err);
         res.status(500).json({ error: err.message || 'server error' });
     }
 });

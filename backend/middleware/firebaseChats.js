@@ -16,6 +16,11 @@ async function createChat(participants = [], type = 'direct', meta = {}) {
     meta: meta || {},
     createdAt: now,
     lastUpdated: now,
+    // unread counts per user id, start at 0 for everyone
+    unread: participants.reduce((acc, p) => {
+      acc[String(p)] = 0;
+      return acc;
+    }, {}),
   });
   return chatRef.id;
 }
@@ -31,26 +36,67 @@ async function getUserChats(uid) {
   return results;
 }
 
+async function getChat(chatId) {
+  if (!chatId) throw new Error('chatId required');
+  const db = getFirestore();
+  const chatRef = db.collection('chats').doc(chatId);
+  const snap = await chatRef.get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
 async function addMessage(chatId, message) {
   if (!chatId) throw new Error('chatId required');
   const db = getFirestore();
-  const messagesRef = db.collection('chats').doc(chatId).collection('messages');
+  const chatRef = db.collection('chats').doc(chatId);
+  const messagesRef = chatRef.collection('messages');
   const now = new Date();
   const doc = await messagesRef.add({
     ...message,
     createdAt: now,
   });
-  // update chat lastUpdated and lastMessage summary
-  const chatRef = db.collection('chats').doc(chatId);
-  await chatRef.update({
-    lastUpdated: now,
-    lastMessage: {
-      text: message.text || null,
-      senderId: message.senderId || null,
-      createdAt: now,
-    },
+  // update chat lastUpdated, lastMessage summary and unread counters
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(chatRef);
+    if (!snap.exists) return;
+    const chat = snap.data();
+    const participants = Array.isArray(chat.participants) ? chat.participants.map(String) : [];
+    const senderId = String(message.senderId);
+    const unread = chat.unread || {};
+    participants.forEach((p) => {
+      const pid = String(p);
+      if (pid === senderId) return;
+      unread[pid] = (unread[pid] || 0) + 1;
+    });
+
+    tx.update(chatRef, {
+      lastUpdated: now,
+      lastMessage: {
+        text: message.text || null,
+        senderId: message.senderId || null,
+        createdAt: now,
+      },
+      unread,
+    });
   });
   return doc.id;
+}
+
+async function resetUnread(chatId, userId) {
+  if (!chatId || !userId) throw new Error('chatId and userId required');
+  const db = getFirestore();
+  const chatRef = db.collection('chats').doc(chatId);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(chatRef);
+    if (!snap.exists) return;
+    const chat = snap.data();
+    const unread = chat.unread || {};
+    const uid = String(userId);
+    if (unread[uid] && unread[uid] !== 0) {
+      unread[uid] = 0;
+      tx.update(chatRef, { unread });
+    }
+  });
 }
 
 async function getMessages(chatId, limit = 50) {
@@ -60,8 +106,7 @@ async function getMessages(chatId, limit = 50) {
   const snap = await q.get();
   const rows = [];
   snap.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
-  // return in chronological order
   return rows.reverse();
 }
 
-module.exports = { createChat, getUserChats, addMessage, getMessages };
+module.exports = { createChat, getUserChats, getChat, addMessage, getMessages, resetUnread };
