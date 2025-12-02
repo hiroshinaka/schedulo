@@ -71,7 +71,7 @@ export default function Header() {
 									)}
 								</button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent className="w-56 z-[70]" align="end">
+							<DropdownMenuContent className="w-56" align="end">
 								<DropdownMenuLabel>
 									<div className="flex items-center gap-3">
 										<Avatar className="h-10 w-10">

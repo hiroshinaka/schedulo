@@ -1,7 +1,7 @@
 import React from 'react';
 import API_BASE from '../utils/apiBase';
 import useAuth from '../hooks/useAuth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select } from './ui/select';
@@ -37,24 +37,24 @@ export default function EventDetailsModal({ isOpen, event, onClose, onDeleteSucc
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent onClose={onClose}>
         <DialogHeader>
-          <DialogTitle>{event.title}</DialogTitle>
-          <DialogDescription>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="text-left">{event.title}</DialogTitle>
             {event.recurrence ? (
-              <Badge variant="secondary" className="mt-1">Repeats: {event.recurrence}</Badge>
+              <Badge variant="secondary">Repeats: {event.recurrence}</Badge>
             ) : (
-              <Badge variant="outline" className="mt-1">One-off event</Badge>
+              <Badge variant="outline">One-off event</Badge>
             )}
-          </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4">
           {event.inviter_name && (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground text-left">
               Invited by <span className="font-medium text-foreground">{event.inviter_name}</span>
             </div>
           )}
 
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-sm text-left">
             <div className="flex items-center">
               <span className="font-medium w-16">Start:</span>
               <span>{new Date(event.start).toLocaleString()}</span>
@@ -67,7 +67,7 @@ export default function EventDetailsModal({ isOpen, event, onClose, onDeleteSucc
 
           {!isOwner && event.attendee_id && (
             <div className="space-y-2">
-              <Label htmlFor="status">Your response</Label>
+              <Label htmlFor="status" className="text-left">Your response</Label>
               <Select
                 id="status"
                 value={event.attendee_status_id || ''}
@@ -106,7 +106,7 @@ export default function EventDetailsModal({ isOpen, event, onClose, onDeleteSucc
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex justify-start items-start">
           <Button variant="outline" onClick={onClose}>Close</Button>
           {isOwner && onEdit && (
             <Button variant="default" onClick={() => { onEdit(event); onClose(); }}>Edit</Button>

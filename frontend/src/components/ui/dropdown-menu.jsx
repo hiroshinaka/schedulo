@@ -18,7 +18,7 @@ const DropdownMenu = ({ children, open, onOpenChange, modal = true }) => {
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block z-[70]">
       {React.Children.map(children, child =>
         React.isValidElement(child)
           ? React.cloneElement(child, { isOpen, setIsOpen: handleOpenChange })
@@ -83,7 +83,7 @@ const DropdownMenuContent = React.forwardRef(({ className, children, align = "st
     <div
       ref={contentRef}
       className={cn(
-        "absolute z-[70] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+        "absolute z-[80] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
         align === "end" && "right-0",
         align === "start" && "left-0",
         "mt-2",

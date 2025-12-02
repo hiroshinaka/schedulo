@@ -113,8 +113,8 @@ export default function TrashPage() {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-lg mb-1">{ev.title}</div>
-                      <div className="text-sm text-muted-foreground space-y-0.5">
+                      <div className="font-semibold text-lg mb-1 text-left">{ev.title}</div>
+                      <div className="text-sm text-muted-foreground space-y-0.5 text-left">
                         <div className="flex items-center gap-1.5">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
