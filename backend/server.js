@@ -29,22 +29,23 @@ app.use(
   })
 );
 
-app.set('trust proxy', 1);
-const isProd = process.env.NODE_ENV === 'production';
-const sessionOptions = {
-  secret: process.env.NODE_SESSION_SECRET || 'defaultsecret',
+app.use(session({
+  secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
   saveUninitialized: false,
+  store: mongoStore,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
   }
-};
+}));
 
-if (mongoStore) sessionOptions.store = mongoStore;
-
-app.use(session(sessionOptions));
+app.use((req, res, next) => {
+  res.locals.username = req.session?.username;
+  res.locals.userId = req.session?.userId;
+  res.locals.authenticated = req.session?.authenticated;
+  res.locals.email = req.session?.email;
+  next();
+});
 
 app.use('/api', apiRouter);
 app.use(express.static(path.join(__dirname, 'public')));
