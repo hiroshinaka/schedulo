@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import API_BASE from '../utils/apiBase';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 
 const STATUS_LABELS = {
   1: 'Pending',
@@ -60,27 +63,51 @@ export default function EventInvites() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h2 className="text-2xl font-semibold mb-4">Event Invites</h2>
+    <div className="container py-6 md:py-10 max-w-6xl">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold tracking-tight mb-1">Event Invitations</h2>
+        <p className="text-muted-foreground">Manage your pending event invites</p>
+      </div>
       {error && (
-        <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-          {error}
+        <div className="mb-4 p-4 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+          <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          <span>{error}</span>
         </div>
       )}
-      {loading && <div className="text-sm text-gray-600">Loading invites...</div>}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="mt-2 text-sm text-muted-foreground">Loading invites...</p>
+        </div>
+      )}
       {!loading && invites.length === 0 && !error && (
-        <div className="text-sm text-gray-500">You have no pending invites.</div>
+        <Card className="shadow-md">
+          <CardContent className="py-12">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="text-muted-foreground font-medium">You have no pending invites</div>
+              <p className="text-sm text-muted-foreground">Event invitations will appear here</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
       {!loading && invites.length > 0 && (
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full text-xs">
-            <thead className="bg-gray-50">
-              <tr className="border-b border-gray-200">
-                <th className="px-4 py-2 text-center font-semibold text-gray-700">Event</th>
-                <th className="px-4 py-2 text-center font-semibold text-gray-700">When</th>
-                <th className="px-4 py-2 text-center font-semibold text-gray-700">Invited By</th>
-                <th className="px-4 py-2 text-center font-semibold text-gray-700">Status</th>
-                <th className="px-4 py-2 text-center font-semibold text-gray-700">Actions</th>
+        <Card className="shadow-md">
+          <CardContent className="p-0 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr className="border-b">
+                <th className="px-6 py-4 text-left font-semibold text-foreground">Event</th>
+                <th className="px-6 py-4 text-left font-semibold text-foreground">When</th>
+                <th className="px-6 py-4 text-left font-semibold text-foreground">Invited By</th>
+                <th className="px-6 py-4 text-center font-semibold text-foreground">Status</th>
+                <th className="px-6 py-4 text-center font-semibold text-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -97,43 +124,43 @@ export default function EventInvites() {
                   .filter(Boolean)
                   .join(' ') || 'Unknown';
                 return (
-                  <tr key={inv.id} className="border-t border-gray-100">
-                    <td className="px-4 py-2 align-top text-center">
-                      <div className="font-medium text-gray-900 text-sm">{inv.event_title}</div>
+                  <tr key={inv.id} className="border-t hover:bg-muted/20 transition-colors">
+                    <td className="px-6 py-4 align-middle">
+                      <div className="font-semibold text-foreground">{inv.event_title}</div>
                       {inv.event_location && (
-                        <div className="text-[11px] text-gray-500">{inv.event_location}</div>
+                        <div className="text-sm text-muted-foreground mt-0.5">{inv.event_location}</div>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-gray-700 text-center align-middle">{when}</td>
-                    <td className="px-4 py-2 text-gray-700 text-center align-middle">{inviter}</td>
-                    <td className="px-4 py-2 text-center align-middle">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    <td className="px-6 py-4 text-foreground align-middle">{when}</td>
+                    <td className="px-6 py-4 text-foreground align-middle">{inviter}</td>
+                    <td className="px-6 py-4 text-center align-middle">
+                      <Badge variant="secondary" className="font-medium">
                         {STATUS_LABELS[inv.status_id] || 'Pending'}
-                      </span>
+                      </Badge>
                     </td>
-                    <td className="px-4 py-2 text-center">
+                    <td className="px-6 py-4 text-center">
                       <div className="inline-flex items-center gap-2">
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
                           onClick={() => respond(inv.id, 2)}
-                          className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-green-600 text-white hover:bg-green-700"
+                          className="bg-green-600 hover:bg-green-700 text-white"
                         >
-                          Going
-                        </button>
-                        <button
-                          type="button"
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => respond(inv.id, 3)}
-                          className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-yellow-500 text-white hover:bg-yellow-600"
+                          variant="outline"
                         >
                           Maybe
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
                           onClick={() => respond(inv.id, 4)}
-                          className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-red-500 text-white hover:bg-red-600"
                         >
-                          Not going
-                        </button>
+                          Decline
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -141,7 +168,8 @@ export default function EventInvites() {
               })}
             </tbody>
           </table>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

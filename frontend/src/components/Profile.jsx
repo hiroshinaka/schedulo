@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useAuth from '../hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Avatar, AvatarImage } from './ui/avatar';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Badge } from './ui/badge';
 
 export default function Profile() {
   const { user, loggedIn, refresh } = useAuth();
@@ -231,265 +237,202 @@ export default function Profile() {
 
   if (!loggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="p-6 bg-white rounded-md shadow-md">
-          <p className="text-center text-lg">You must be logged in to view your profile.</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-muted/50">
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+            <CardDescription>You must be logged in to view your profile.</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-2xl shadow p-6 flex gap-6">
-          <div className="relative">
-            <img
-              src={userAvatar}
-              alt={`${user?.first_name || 'User'} ${user?.last_name || ''}`}
-              className="h-24 w-24 rounded-full object-cover"
-            />
+    <main className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-6 md:py-10">
+      <div className="container max-w-5xl">
+        <Card className="mb-8 shadow-lg">
+          <CardContent className="flex flex-col md:flex-row gap-6 pt-8 pb-6">
+              <div className="flex flex-col items-center md:items-start">
+              <div className="relative group">
+                <Avatar className="h-28 w-28 border-4 border-background shadow-md">
+                  <AvatarImage src={userAvatar} alt={`${user?.first_name || 'User'} ${user?.last_name || ''}`} />
+                </Avatar>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
 
-            <button
-              type="button"
-              onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              className="absolute bottom-0 right-0 -mb-0 -mr-0 h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center border-2 border-white hover:bg-slate-800"
-              aria-label="Change profile picture"
-              title="Change profile picture"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                  <path d="M14.2639 15.9376L12.5958 14.2835C11.7909 13.4852 11.3884 13.0861 10.9266 12.9402C10.5204 12.8119 10.0838 12.8166 9.68048 12.9537C9.22188 13.1096 8.82814 13.5173 8.04068 14.3327L4.04409 18.2802M14.2639 15.9376L14.6053 15.5991C15.4112 14.7999 15.8141 14.4003 16.2765 14.2544C16.6831 14.1262 17.12 14.1312 17.5236 14.2688C17.9824 14.4252 18.3761 14.834 19.1634 15.6515L20 16.4936M14.2639 15.9376L18.275 19.9566M18.275 19.9566C17.9176 20.0001 17.4543 20.0001 16.8 20.0001H7.2C6.07989 20.0001 5.51984 20.0001 5.09202 19.7821C4.71569 19.5904 4.40973 19.2844 4.21799 18.9081C4.12796 18.7314 4.07512 18.5322 4.04409 18.2802M18.275 19.9566C18.5293 19.9257 18.7301 19.8728 18.908 19.7821C19.2843 19.5904 19.5903 19.2844 19.782 18.9081C20 18.4803 20 17.9202 20 16.8001V16.4936M12.5 4L7.2 4.00011C6.07989 4.00011 5.51984 4.00011 5.09202 4.21809C4.71569 4.40984 4.40973 4.7158 4.21799 5.09213C4 5.51995 4 6.08 4 7.20011V16.8001C4 17.4576 4 17.9222 4.04409 18.2802M20 11.5V16.4936M14 10.0002L16.0249 9.59516C16.2015 9.55984 16.2898 9.54219 16.3721 9.5099C16.4452 9.48124 16.5146 9.44407 16.579 9.39917C16.6515 9.34859 16.7152 9.28492 16.8425 9.1576L21 5.00015C21.5522 4.44787 21.5522 3.55244 21 3.00015C20.4477 2.44787 19.5522 2.44787 19 3.00015L14.8425 7.1576C14.7152 7.28492 14.6515 7.34859 14.6009 7.42112C14.556 7.4855 14.5189 7.55494 14.4902 7.62801C14.4579 7.71033 14.4403 7.79862 14.4049 7.97518L14 10.0002Z" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-                </g>
-              </svg>
-            </button>
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl  text-left font-semibold text-slate-900">
-                  {user?.first_name} {user?.last_name}
-                </h1>
-                <p className="text-sm text-left text-slate-600">{user?.email}</p>
+                <Button
+                  size="icon"
+                  variant="default"
+                  className="absolute bottom-0 right-0 h-9 w-9 z-50 rounded-full border-2 border-background transition-transform hover:scale-105"
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  aria-label="Change profile picture"
+                  title="Change profile picture"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </Button>
               </div>
             </div>
+            <div className="flex-1 text-center md:text-left">
+              <div>
+                <h1 className="text-3xl font-bold">
+                  {user?.first_name} {user?.last_name}
+                </h1>
+                <p className="text-muted-foreground mt-1">{user?.email}</p>
+              </div>
 
-            <div className="flex flex-col text-left mt-4">
-              <div className="text-sm text-slate-500">Member since</div>
-              <div className="font-medium">{new Date().toLocaleDateString()}</div>
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-lg">
+                <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm text-muted-foreground">Joined {new Date().toLocaleDateString()}</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <section className="mt-8">
-          <h2 className="text-xl text-left font-semibold text-slate-900 mb-4">Friends</h2>
-          
-          <div className="flex gap-2 mb-6 border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('friends')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'friends' 
-                  ? 'border-b-2 border-slate-900 text-slate-900' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              My Friends ({friends.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'requests' 
-                  ? 'border-b-2 border-slate-900 text-slate-900' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Requests ({pendingRequests.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('sent')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'sent' 
-                  ? 'border-b-2 border-slate-900 text-slate-900' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Sent ({sentRequests.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('add')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors ${
-                activeTab === 'add' 
-                  ? 'border-b-2 border-slate-900 text-slate-900' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Add Friends
-            </button>
-          </div>
+        <Card className="shadow-lg">
+          <CardHeader className="border-b">
+            <CardTitle className="text-2xl">Friends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs className="py-2" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-4 gap-2">
+                <TabsTrigger value="friends" className="flex items-center gap-2">
+                  <span>My Friends</span>
+                  <Badge variant="secondary">{friends.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="requests" className="flex items-center gap-2">
+                  <span>Requests</span>
+                  <Badge variant="secondary">{pendingRequests.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="sent" className="flex items-center gap-2">
+                  <span>Sent</span>
+                  <Badge variant="secondary">{sentRequests.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="add">Add Friends</TabsTrigger>
+              </TabsList>
 
-          <div className="bg-white rounded-2xl shadow p-6">
-            {activeTab === 'friends' && (
-              <div className="space-y-3">
+              <TabsContent value="friends" className="space-y-3">
                 {friends.length === 0 ? (
-                  <p className="text-slate-500 text-center py-8">No friends yet. Start adding friends!</p>
+                  <p className="text-muted-foreground text-left py-8">No friends yet. Start adding friends!</p>
                 ) : (
                   friends.map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-                      <div className="flex text-left items-center gap-3">
-                        <img 
-                          src={friend.image_url || defaultAvatar} 
-                          alt={friend.first_name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
+                    <div key={friend.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={friend.image_url || defaultAvatar} alt={friend.first_name} />
+                        </Avatar>
                         <div>
-                          <div className="font-medium text-slate-900">
-                            {friend.first_name} {friend.last_name}
-                          </div>
-                          <div className="text-sm text-slate-500">{friend.email}</div>
+                          <div className="font-medium text-left">{friend.first_name} {friend.last_name}</div>
+                          <div className="text-sm text-muted-foreground text-left">{friend.email}</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeFriend(friend.id)}
-                        className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
-                      >
+                      <Button variant="destructive" size="sm" onClick={() => removeFriend(friend.id)}>
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   ))
                 )}
-              </div>
-            )}
+              </TabsContent>
 
-            {activeTab === 'requests' && (
-              <div className="space-y-3">
+              <TabsContent value="requests" className="space-y-3">
                 {pendingRequests.length === 0 ? (
-                  <p className="text-slate-500 text-center py-8">No pending friend requests</p>
+                  <p className="text-muted-foreground text-left py-8">No pending friend requests</p>
                 ) : (
                   pendingRequests.map((request) => (
-                    <div key={request.request_id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-                      <div className="flex text-left items-center gap-3">
-                        <img 
-                          src={request.image_url || defaultAvatar} 
-                          alt={request.first_name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
+                    <div key={request.request_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={request.image_url || defaultAvatar} alt={request.first_name} />
+                        </Avatar>
                         <div>
-                          <div className="font-medium text-slate-900">
-                            {request.first_name} {request.last_name}
-                          </div>
-                          <div className="text-sm text-slate-500">{request.email}</div>
+                          <div className="font-medium text-left">{request.first_name} {request.last_name}</div>
+                          <div className="text-sm text-muted-foreground text-left">{request.email}</div>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => acceptFriendRequest(request.request_id)}
-                          className="px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
-                        >
+                        <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => acceptFriendRequest(request.request_id)}>
                           Accept
-                        </button>
-                        <button
-                          onClick={() => rejectFriendRequest(request.request_id)}
-                          className="px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 rounded"
-                        >
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => rejectFriendRequest(request.request_id)}>
                           Reject
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))
                 )}
-              </div>
-            )}
+              </TabsContent>
 
-            {activeTab === 'sent' && (
-              <div className="space-y-3">
+              <TabsContent value="sent" className="space-y-3">
                 {sentRequests.length === 0 ? (
-                  <p className="text-slate-500 text-center py-8">No sent friend requests</p>
+                  <p className="text-muted-foreground text-left py-8">No sent friend requests</p>
                 ) : (
                   sentRequests.map((request) => (
-                    <div key={request.request_id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-                      <div className="flex text-left items-center gap-3">
-                        <img 
-                          src={request.image_url || defaultAvatar} 
-                          alt={request.first_name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
+                    <div key={request.request_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={request.image_url || defaultAvatar} alt={request.first_name} />
+                        </Avatar>
                         <div>
-                          <div className="font-medium text-slate-900">
-                            {request.first_name} {request.last_name}
-                          </div>
-                          <div className="text-sm text-slate-500">{request.email}</div>
+                          <div className="font-medium text-left">{request.first_name} {request.last_name}</div>
+                          <div className="text-sm text-muted-foreground text-left">{request.email}</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => cancelFriendRequest(request.request_id)}
-                        className="px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 rounded"
-                      >
+                      <Button size="sm" variant="outline" onClick={() => cancelFriendRequest(request.request_id)}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   ))
                 )}
-              </div>
-            )}
+              </TabsContent>
 
-            {activeTab === 'add' && (
-              <div>
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    placeholder="Search users by name or email..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
+              <TabsContent value="add" className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Search users by name or email..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                />
                 <div className="space-y-3">
                   {loading ? (
-                    <p className="text-slate-500 text-center py-8">Searching...</p>
+                    <p className="text-muted-foreground text-left py-8">Searching...</p>
                   ) : searchResults.length === 0 && searchQuery ? (
-                    <p className="text-slate-500 text-center py-8">No users found</p>
+                    <p className="text-muted-foreground text-left py-8">No users found</p>
                   ) : searchResults.length === 0 ? (
-                    <p className="text-slate-500 text-center py-8">Search for users to add as friends</p>
+                    <p className="text-muted-foreground text-left py-8">Search for users to add as friends</p>
                   ) : (
                     searchResults.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-                        <div className="flex text-left items-center gap-3">
-                          <img 
-                            src={user.image_url || defaultAvatar} 
-                            alt={user.first_name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
+                      <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={user.image_url || defaultAvatar} alt={user.first_name} />
+                          </Avatar>
                           <div>
-                            <div className="font-medium text-slate-900">
-                              {user.first_name} {user.last_name}
-                            </div>
-                            <div className="text-sm text-slate-500">{user.email}</div>
+                            <div className="font-medium text-left">{user.first_name} {user.last_name}</div>
+                            <div className="text-sm text-muted-foreground text-left">{user.email}</div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => sendFriendRequest(user.id)}
-                          className="px-3 py-1 text-sm bg-slate-900 text-white hover:bg-slate-800 rounded"
-                        >
+                        <Button size="sm" onClick={() => sendFriendRequest(user.id)}>
                           Add Friend
-                        </button>
+                        </Button>
                       </div>
                     ))
                   )}
                 </div>
-              </div>
-            )}
-          </div>
-        </section>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

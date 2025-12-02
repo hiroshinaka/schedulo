@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HexColorPicker } from "react-colorful";
 import API_BASE from '../utils/apiBase';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Select } from './ui/select';
+import { Badge } from './ui/badge';
 
 export default function AddEventModal({isOpen, onClose, onSave, initialEvent = null}) {
     const [title, setTitle] = useState('');
@@ -213,160 +219,148 @@ export default function AddEventModal({isOpen, onClose, onSave, initialEvent = n
         return () => { if (inviteTimer.current) clearTimeout(inviteTimer.current); };
     }, [invitedUsers, startDate, endDate]);
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="fixed inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
-            <div
-                role="dialog"
-                aria-modal="true"
-                className="relative z-10 w-full max-w-lg bg-white rounded-md shadow-lg p-6"
-            >
-                <h3 className="text-lg font-medium mb-4">{initialEvent && initialEvent.id ? 'Edit Event' : 'Add Event'}</h3>
-                <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-3">
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Title</label>
-                        <div className="sm:col-span-2">
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                required
-                            />
-                        </div>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onClose={onClose}>
+                <DialogHeader>
+                    <DialogTitle>{initialEvent && initialEvent.id ? 'Edit Event' : 'Add Event'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="title">Title</Label>
+                        <Input
+                            type="text"
+                            id="title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            required
+                        />
+                    </div>
 
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Start</label>
-                        <div className="sm:col-span-2">
-                            <input
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="startDate">Start</Label>
+                            <Input
                                 type="datetime-local"
+                                id="startDate"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 required
                             />
                         </div>
 
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">End</label>
-                        <div className="sm:col-span-2">
-                            <input
+                        <div className="space-y-2">
+                            <Label htmlFor="endDate">End</Label>
+                            <Input
                                 type="datetime-local"
+                                id="endDate"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                 required
                             />
-                        </div>
-
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Recurring</label>
-                        <div className="sm:col-span-2">
-                            <select
-                                        id="recurrence"
-                                        value={recurrence}
-                                        onChange={(e) => setRecurrence(e.target.value)}
-                                className="mt-1 block w-full border bg-white border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            >
-                                <option value="">Does not repeat</option>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="yearly">Yearly</option>
-                            </select>
-                        </div>
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Invite</label>
-                        <div className="sm:col-span-2">
-                            <div className="flex flex-col">
-                                <input
-                                    type="text"
-                                    value={inviteQuery}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        setInviteQuery(v);
-                                        setSuggestions([]);
-                                        if (inviteTimer.current) clearTimeout(inviteTimer.current);
-                                        if (!v || !v.trim()) return;
-                                        inviteTimer.current = setTimeout(async () => {
-                                            try {
-                                                const resp = await fetch(`${API_BASE}/api/friends/search?q=${encodeURIComponent(v)}`, { credentials: 'include' });
-                                                if (!resp.ok) return;
-                                                const data = await resp.json();
-                                                setSuggestions(data.friends || []);
-                                            } catch (err) {
-                                                console.error('Friend search failed', err);
-                                            }
-                                        }, 250);
-                                    }}
-                                    placeholder="Type a friend name or email"
-                                    className="mt-1 block w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                />
-
-                                {suggestions.length > 0 && (
-                                    <ul className="border rounded mt-1 bg-white max-h-40 overflow-auto">
-                                        {suggestions.map((s) => (
-                                            <li key={s.id} className="px-2 py-1 hover:bg-gray-100 cursor-pointer flex justify-between items-center" onClick={() => {
-                                                if (!invitedUsers.find(u => String(u.id) === String(s.id))) {
-                                                    setInvitedUsers(prev => [...prev, s]);
-                                                }
-                                                setInviteQuery('');
-                                                setSuggestions([]);
-                                            }}>
-                                                <div className="flex items-center gap-2">
-                                                    <img 
-                                                        src={s.image_url || '/default-avatar.svg'} 
-                                                        alt={s.first_name}
-                                                        className="w-8 h-8 rounded-full object-cover"
-                                                    />
-                                                    <div className="text-left">
-                                                        <div className="text-sm font-medium">{s.first_name} {s.last_name}</div>
-                                                        <div className="text-xs text-gray-500">{s.email}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-xs text-gray-400">Add</div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-
-                                {invitedUsers.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {invitedUsers.map((u) => (
-                                            <div key={u.id} className="bg-gray-100 px-2 py-1 rounded flex items-center gap-2">
-                                                <div className="text-sm">{u.first_name} {u.last_name}</div>
-                                                <button type="button" aria-label="Remove" className="text-xs text-red-500" onClick={() => setInvitedUsers(prev => prev.filter(x => String(x.id) !== String(u.id)))}>x</button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <label className="sm:col-span-1 text-sm font-medium text-right pr-4">Event Color</label>
-                        <div className="sm:col-span-2">
-                            <div className="flex flex-col items-start gap-2">
-                                <div className="w-[180px]">
-                                    <input
-                                        type="text"
-                                        value={color}
-                                        onChange={(e) => setColor(e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none"
-                                        aria-label="Hex color value"
-                                    />
-                                </div>
-
-                                <div className="w-[180px] border border-gray-300 rounded overflow-hidden">
-                                    <HexColorPicker color={color} onChange={setColor} style={{ width: '100%' }} />
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    {error && <p className="text-sm text-red-600">{error}</p>}
+                    <div className="space-y-2">
+                        <Label htmlFor="recurrence">Recurring</Label>
+                        <Select
+                            id="recurrence"
+                            value={recurrence}
+                            onChange={(e) => setRecurrence(e.target.value)}
+                        >
+                            <option value="">Does not repeat</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="invite">Invite Friends</Label>
+                        <Input
+                            type="text"
+                            id="invite"
+                            value={inviteQuery}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                setInviteQuery(v);
+                                setSuggestions([]);
+                                if (inviteTimer.current) clearTimeout(inviteTimer.current);
+                                if (!v || !v.trim()) return;
+                                inviteTimer.current = setTimeout(async () => {
+                                    try {
+                                        const resp = await fetch(`${API_BASE}/api/friends/search?q=${encodeURIComponent(v)}`, { credentials: 'include' });
+                                        if (!resp.ok) return;
+                                        const data = await resp.json();
+                                        setSuggestions(data.friends || []);
+                                    } catch (err) {
+                                        console.error('Friend search failed', err);
+                                    }
+                                }, 250);
+                            }}
+                            placeholder="Type a friend name or email"
+                        />
 
-                    {isCheckingConflicts && <p className="text-sm text-yellow-600">Checking invitee availability...</p>}
+                        {suggestions.length > 0 && (
+                            <ul className="border rounded mt-2 bg-background max-h-40 overflow-auto">
+                                {suggestions.map((s) => (
+                                    <li key={s.id} className="px-3 py-2 hover:bg-accent cursor-pointer flex justify-between items-center" onClick={() => {
+                                        if (!invitedUsers.find(u => String(u.id) === String(s.id))) {
+                                            setInvitedUsers(prev => [...prev, s]);
+                                        }
+                                        setInviteQuery('');
+                                        setSuggestions([]);
+                                    }}>
+                                        <div className="flex items-center gap-2">
+                                            <img 
+                                                src={s.image_url || '/default-avatar.svg'} 
+                                                alt={s.first_name}
+                                                className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                            <div className="text-left">
+                                                <div className="text-sm font-medium">{s.first_name} {s.last_name}</div>
+                                                <div className="text-xs text-muted-foreground">{s.email}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Add</div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+
+                        {invitedUsers.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {invitedUsers.map((u) => (
+                                    <Badge key={u.id} variant="secondary" className="gap-2">
+                                        <span>{u.first_name} {u.last_name}</span>
+                                        <button type="button" aria-label="Remove" className="text-xs hover:text-destructive" onClick={() => setInvitedUsers(prev => prev.filter(x => String(x.id) !== String(u.id)))}>✕</button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="color">Event Color</Label>
+                        <Input
+                            type="text"
+                            id="color"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            aria-label="Hex color value"
+                        />
+                        <div className="border rounded overflow-hidden w-full max-w-[240px]">
+                            <HexColorPicker color={color} onChange={setColor} style={{ width: '100%' }} />
+                        </div>
+                    </div>
+
+                    {error && <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">{error}</p>}
+
+                    {isCheckingConflicts && <p className="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md p-3">Checking invitee availability...</p>}
                     {(!isCheckingConflicts && conflicts && conflicts.length > 0) && (
-                        <div className="p-2 border border-red-200 bg-red-50 rounded">
-                            <div className="text-sm font-medium text-red-700">Conflicts detected for invitees:</div>
-                            <ul className="text-sm mt-1 list-disc list-inside">
+                        <div className="p-3 border border-destructive/50 bg-destructive/10 rounded-md">
+                            <div className="text-sm font-medium text-destructive">Conflicts detected for invitees:</div>
+                            <ul className="text-sm mt-2 list-disc list-inside space-y-1">
                                 {invitedUsers.map(u => {
                                     const uConf = conflicts.find(c => String(c.userId) === String(u.id));
                                     if (!uConf) return null;
@@ -377,24 +371,20 @@ export default function AddEventModal({isOpen, onClose, onSave, initialEvent = n
                                     );
                                 })}
                             </ul>
-                            <div className="text-xs text-red-600 mt-2">Resolve these conflicts or remove the invitees before saving.</div>
+                            <div className="text-xs text-destructive mt-2">Resolve these conflicts or remove the invitees before saving.</div>
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-2 mt-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-3 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50"
-                        >
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
-                        </button>
-                        <button type="submit" disabled={(conflicts && conflicts.length > 0)} className={`px-3 py-1 rounded ${conflicts && conflicts.length > 0 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-brand-main text-brand-contrast hover:brightness-90'}`}>
+                        </Button>
+                        <Button type="submit" disabled={(conflicts && conflicts.length > 0)}>
                             {conflicts && conflicts.length > 0 ? 'Resolve Conflicts' : 'Save'}
-                        </button>
-                    </div>
+                        </Button>
+                    </DialogFooter>
                 </form>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }
