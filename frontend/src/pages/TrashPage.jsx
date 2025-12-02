@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import API_BASE from '../utils/apiBase';
 import { Link } from 'react-router-dom';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 
 export default function TrashPage() {
   const [events, setEvents] = useState([]);
@@ -59,31 +61,92 @@ export default function TrashPage() {
   };
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Trash</h2>
-          <Link to="/app" className="text-sm text-blue-600">Back to calendar</Link>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-6 md:py-10">
+      <div className="container max-w-5xl">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight mb-1">Deleted Events</h2>
+            <p className="text-muted-foreground">Restore events deleted within the last 30 days</p>
+          </div>
+          <Link to="/app">
+            <Button variant="outline" size="lg">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Calendar
+            </Button>
+          </Link>
         </div>
 
-        {loading && <div>Loading...</div>}
-        {!loading && events.length === 0 && <div className="text-gray-600">No deleted events.</div>}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="mt-2 text-sm text-muted-foreground">Loading deleted events...</p>
+          </div>
+        )}
+        
+        {!loading && events.length === 0 && (
+          <Card className="shadow-md">
+            <CardContent className="py-12">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div className="text-muted-foreground font-medium">Trash is empty</div>
+                <p className="text-sm text-muted-foreground">Deleted events will appear here</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <ul className="space-y-3">
+        <div className="space-y-3">
           {events.map(ev => (
-            <li key={ev.id} className="p-3 border rounded flex items-center justify-between">
-              <div>
-                <div className="font-medium">{ev.title}</div>
-                <div className="text-xs text-gray-600">{new Date(ev.start).toLocaleString()} — {new Date(ev.end).toLocaleString()}</div>
-                <div className="text-xs text-gray-500">{ev.recurrence ? `Repeats: ${ev.recurrence}` : 'One-off'}</div>
-                <div className="text-xs text-gray-400">Deleted: {new Date(ev.deleted_at).toLocaleString()}</div>
-              </div>
-              <div className="flex gap-2">
-                <button className="px-3 py-1 rounded bg-green-600 text-white" onClick={() => handleRestore(ev.id)}>Restore</button>
-              </div>
-            </li>
+            <Card key={ev.id} className="shadow-md hover:shadow-lg transition-shadow">
+              <CardContent className="p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-lg mb-1 text-left">{ev.title}</div>
+                      <div className="text-sm text-muted-foreground space-y-0.5 text-left">
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>{new Date(ev.start).toLocaleString()} — {new Date(ev.end).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>{ev.recurrence ? `Repeats: ${ev.recurrence}` : 'One-time event'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground/60">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>Deleted: {new Date(ev.deleted_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Button size="lg" className="bg-green-600 hover:bg-green-700" onClick={() => handleRestore(ev.id)}>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Restore Event
+                </Button>
+              </CardContent>
+            </Card>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import AddEventModal from './AddEventModal';
 import EventDetailsModal from './EventDetailsModal';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -273,48 +275,52 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="p-8 w-full max-w-5xl">
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--brand-main)' }}>Your Calendar</h2>
-
-        <div className="my-4 flex gap-2">
-          <button
-            className="px-3 py-1 rounded bg-gray-200"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <i className="fa-solid fa-plus"></i> Add Event
-          </button>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container py-6 md:py-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight mb-1">Your Calendar</h2>
+            <p className="text-muted-foreground">Manage your schedule and upcoming events</p>
+          </div>
+          <Button onClick={() => setIsModalOpen(true)} size="lg">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Event
+          </Button>
         </div>
 
-        <BigCalendar
-          localizer={localizer}
-          events={events}
-          onSelectEvent={handleEventClick}
-          startAccessor="start"
-          endAccessor="end"
-          view={view}
-          onView={(v) => setView(v)}
-          date={date}
-          onNavigate={(newDate) => setDate(newDate)}
-          onRangeChange={handleRangeChange}
-          eventPropGetter={eventStyleGetter}
-          components={{
-            event: ({ event }) => {
-              let prefix = '';
-              if (event.is_invited) {
-                // map attendee status to an emoji
-                if (event.attendee_status_id === 2 || event.attendee_status_name === 'going') prefix = '✅ ';
-                else if (event.attendee_status_id === 3 || event.attendee_status_name === 'maybe') prefix = '🤔 ';
-                else if (event.attendee_status_id === 4 || event.attendee_status_name === 'declined') prefix = '❌ ';
-                else prefix = '📩 ';
-              }
-              return <span>{prefix}{event.title}</span>;
-            },
-          }}
-          selectable
-          style={{ height: 600 }}
-          defaultDate={new Date()}
-        />
+        <Card className="p-4 md:p-6 shadow-md">
+          <BigCalendar
+            localizer={localizer}
+            events={events}
+            onSelectEvent={handleEventClick}
+            startAccessor="start"
+            endAccessor="end"
+            view={view}
+            onView={(v) => setView(v)}
+            date={date}
+            onNavigate={(newDate) => setDate(newDate)}
+            onRangeChange={handleRangeChange}
+            eventPropGetter={eventStyleGetter}
+            components={{
+              event: ({ event }) => {
+                let prefix = '';
+                if (event.is_invited) {
+                  // map attendee status to an emoji
+                  if (event.attendee_status_id === 2 || event.attendee_status_name === 'going') prefix = '✅ ';
+                  else if (event.attendee_status_id === 3 || event.attendee_status_name === 'maybe') prefix = '🤔 ';
+                  else if (event.attendee_status_id === 4 || event.attendee_status_name === 'declined') prefix = '❌ ';
+                  else prefix = '📩 ';
+                }
+                return <span>{prefix}{event.title}</span>;
+              },
+            }}
+            selectable
+            style={{ height: 600 }}
+            defaultDate={new Date()}
+          />
+        </Card>
         <AddEventModal
           isOpen={isModalOpen}
           initialEvent={editingEvent}
