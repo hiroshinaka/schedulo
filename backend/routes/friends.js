@@ -27,7 +27,7 @@ router.get('/search', requireSessionUser, async (req, res) => {
       code: err.code,
       sql: err.sql
     });
-    res.status(500).json({ error: err.message || 'server error' });
+    return res.status(500).json({ error: err.message || 'server error' });
   }
 });
 
