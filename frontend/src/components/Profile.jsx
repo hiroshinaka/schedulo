@@ -52,7 +52,15 @@ export default function Profile() {
   const loadFriends = async () => {
     try {
       const res = await fetch('/api/profile/friends', { credentials: 'include' });
-      const data = await res.json();
+      console.log('loadFriends response status:', res.status);
+      const text = await res.text();
+      console.log('loadFriends response text length:', text.length);
+      console.log('loadFriends response text:', text);
+      if (!text) {
+        console.error('loadFriends returned empty response');
+        return;
+      }
+      const data = JSON.parse(text);
       if (data.ok) {
         setFriends(data.friends || []);
       }
@@ -64,7 +72,15 @@ export default function Profile() {
   const loadFriendRequests = async () => {
     try {
       const res = await fetch('/api/profile/friend-requests', { credentials: 'include' });
-      const data = await res.json();
+      console.log('loadFriendRequests response status:', res.status);
+      const text = await res.text();
+      console.log('loadFriendRequests response text length:', text.length);
+      console.log('loadFriendRequests response text:', text);
+      if (!text) {
+        console.error('loadFriendRequests returned empty response');
+        return;
+      }
+      const data = JSON.parse(text);
       if (data.ok) {
         setPendingRequests(data.pending || []);
         setSentRequests(data.sent || []);
@@ -85,7 +101,16 @@ export default function Profile() {
       const res = await fetch(`/api/profile/search-users?q=${encodeURIComponent(query)}`, { 
         credentials: 'include' 
       });
-      const data = await res.json();
+      console.log('searchUsers response status:', res.status);
+      const text = await res.text();
+      console.log('searchUsers response text length:', text.length);
+      console.log('searchUsers response text:', text);
+      if (!text) {
+        console.error('searchUsers returned empty response');
+        setLoading(false);
+        return;
+      }
+      const data = JSON.parse(text);
       if (data.ok) {
         setSearchResults(data.users || []);
       }
