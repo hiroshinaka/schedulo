@@ -8,26 +8,29 @@ function requireSessionUser(req, res, next) {
   next();
 }
 
-// GET /api/friends/search?q=...
+// GET /api/friends/search?q=... (&global=1 to allow searching all users)
 router.get('/search', requireSessionUser, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) return res.json({ friends: [] });
     const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+
+    // By default, only search within the current user's friends. If the client passes global=1,
+    // fall back to searching all users (exclude self). This preserves previous behavior when
+    // intentionally requested, but prevents non-friends from appearing in the friend picker by default.
+    const allowGlobal = String(req.query.global || '0') === '1';
     let rows = await friendsQueries.searchFriendsForUser(pool, uid, q, 10);
-    // if user has no friends or nothing matches, fallback to searching all users (exclude self)
-    if (!rows || rows.length === 0) {
+    if ((!rows || rows.length === 0) && allowGlobal) {
       rows = await friendsQueries.searchUsers(pool, q, 10, uid);
     }
-    return res.json({ friends: rows });
+    return res.json({ friends: rows || [] });
   } catch (err) {
     console.error('GET /api/friends/search error', {
       message: err.message,
       stack: err.stack,
-      code: err.code,
-      sql: err.sql
+      code: err.code
     });
-    return res.status(500).json({ error: err.message || 'server error' });
+    return res.status(500).json({ error: 'server_error', message: 'Unable to search friends' });
   }
 });
 

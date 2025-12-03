@@ -44,6 +44,19 @@ router.post('/invite', requireSessionUser, async (req, res) => {
         // remove owner if present
         const filteredInvitees = inviteeIds.filter(id => id !== String(uid));
 
+        // ensure invitees are friends with owner/requester
+        if (filteredInvitees.length) {
+            const placeholders = filteredInvitees.map(() => '?').join(',');
+            const sql = `SELECT DISTINCT CASE WHEN friend_1 = ? THEN friend_2 WHEN friend_2 = ? THEN friend_1 END AS friend_id FROM friend WHERE (friend_1 = ? AND friend_2 IN (${placeholders})) OR (friend_2 = ? AND friend_1 IN (${placeholders}))`;
+            const params = [uid, uid, uid, ...filteredInvitees, uid, ...filteredInvitees];
+            const [rows] = await pool.query(sql, params);
+            const friendIds = (rows || []).map(r => String(r.friend_id));
+            const notFriends = filteredInvitees.filter(id => !friendIds.includes(String(id)));
+            if (notFriends.length) {
+                return res.status(400).json({ error: 'invitees_must_be_friends', invalid: notFriends });
+            }
+        }
+
         // check for conflicts for each invitee
         if (filteredInvitees.length) {
             const conflicts = await eventQueries.checkUsersBusyForInterval(pool, filteredInvitees, startDate, endDate);
@@ -56,7 +69,8 @@ router.post('/invite', requireSessionUser, async (req, res) => {
         return res.json({ event });
     } catch (err) {
         console.error('POST /api/events/invite error', err);
-        res.status(500).json({ error: err.message || 'server error' });
+        // return a structured, user-friendly error so frontend can show clearer messages
+        res.status(500).json({ ok: false, error: 'create_event_failed', message: 'Failed to save event', detail: err.message });
     }
 });
 
@@ -79,6 +93,20 @@ router.post('/:eventId/invite', requireSessionUser, async (req, res) => {
 
         const inviteeIds = Array.isArray(attendees) ? [...new Set(attendees.map(String))] : [];
         const filteredInvitees = inviteeIds.filter(id => id !== String(uid));
+
+        // ensure invitees are friends with owner/requester
+        if (filteredInvitees.length) {
+            const placeholders = filteredInvitees.map(() => '?').join(',');
+            const sql = `SELECT DISTINCT CASE WHEN friend_1 = ? THEN friend_2 WHEN friend_2 = ? THEN friend_1 END AS friend_id FROM friend WHERE (friend_1 = ? AND friend_2 IN (${placeholders})) OR (friend_2 = ? AND friend_1 IN (${placeholders}))`;
+            const params = [uid, uid, uid, ...filteredInvitees, uid, ...filteredInvitees];
+            const [rows] = await pool.query(sql, params);
+            const friendIds = (rows || []).map(r => String(r.friend_id));
+            const notFriends = filteredInvitees.filter(id => !friendIds.includes(String(id)));
+            if (notFriends.length) {
+                return res.status(400).json({ error: 'invitees_must_be_friends', invalid: notFriends });
+            }
+        }
+
         if (filteredInvitees.length) {
             const conflicts = await eventQueries.checkUsersBusyForInterval(pool, filteredInvitees, start, end);
             if (conflicts && conflicts.length) {
@@ -90,7 +118,7 @@ router.post('/:eventId/invite', requireSessionUser, async (req, res) => {
         return res.json({ ok: true });
     } catch (err) {
         console.error('POST /api/events/:eventId/invite error', err);
-        res.status(500).json({ error: err.message || 'server error' });
+        res.status(500).json({ ok: false, error: 'invite_failed', message: 'Failed to add invitees', detail: err.message });
     }
 });
 
