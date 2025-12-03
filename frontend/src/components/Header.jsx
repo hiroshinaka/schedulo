@@ -121,7 +121,7 @@ export default function Header() {
 									</div>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-								<DropdownMenuItem onSelect={() => navigate('/')}>
+								<DropdownMenuItem onSelect={() => navigate('/app')}>
 									<span>Home</span>
 								</DropdownMenuItem>
 							<DropdownMenuItem onSelect={() => navigate('/profile')}>
