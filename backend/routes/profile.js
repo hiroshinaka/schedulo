@@ -3,15 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6*1024*1024 } });
-
-let pool;
-try {
-  pool = require('../database/sqlConnections.js');
-} catch (err) {
-  console.error('ERROR: Failed to load database pool in profile.js:', err.message);
-  throw err;
-}
-
+const pool = require('../database/sqlConnections.js');
 const friendsQueries = require('../database/dbQueries/friendsQueries.js');
 
 cloudinary.config({
