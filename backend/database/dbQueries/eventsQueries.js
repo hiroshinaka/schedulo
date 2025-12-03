@@ -155,9 +155,8 @@ let fetchEventsByUserID = async (pool, user_id) => {
          WHERE e.deleted_at IS NULL
            AND (
              e.owner_id = ?
-             OR ea.user_id = ?
-           )
-             AND ea.status_id <> 1`,
+             OR (ea.user_id = ? AND ea.status_id <> 1)
+           )`,
         [user_id, user_id, user_id]
     );
     return rows;
