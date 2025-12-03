@@ -122,4 +122,23 @@ router.get('/:chatId/messages', requireSessionUser, async (req, res) => {
   }
 });
 
+// Get total unread messages count for current user
+router.get('/unread-count', requireSessionUser, async (req, res) => {
+  try {
+    const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+    const chats = await firebaseChats.getUserChats(uid);
+    let totalUnread = 0;
+    
+    for (const chat of chats) {
+      const unreadCount = chat.unread && chat.unread[uid] ? chat.unread[uid] : 0;
+      totalUnread += unreadCount;
+    }
+    
+    res.json({ ok: true, count: totalUnread });
+  } catch (err) {
+    console.error('GET /api/chats/unread-count error', err);
+    res.status(500).json({ ok: false, error: err.message || 'server error' });
+  }
+});
+
 module.exports = router;

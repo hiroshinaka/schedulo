@@ -25,6 +25,11 @@ cloudinary.config({
 
 // Return current session user
 router.get('/me', (req, res) => {
+    // Prevent caching so auth state is always fresh
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
     try {
         if (req.session && req.session.user) {
             return res.json({ ok: true, user: req.session.user });
@@ -135,7 +140,6 @@ router.post('/login', async (req, res) => {
                 console.error('Session save error:', err);
                 return res.status(500).json({ ok: false, message: 'Failed to save session' });
             }
-            console.log('Session saved successfully for user:', user.id);
             res.json({ ok: true, message: 'User logged in successfully' });
         });
     } catch (err) {

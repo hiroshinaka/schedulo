@@ -41,6 +41,8 @@ export default function EventInvites() {
 
   useEffect(() => {
     loadInvites();
+    // Dispatch event so Header updates invite count
+    window.dispatchEvent(new Event('invites-viewed'));
   }, []);
 
   const respond = async (inviteId, statusId) => {
@@ -57,6 +59,8 @@ export default function EventInvites() {
       }
       // After responding, remove this invite from the pending list
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      // Dispatch event so Header updates invite count
+      window.dispatchEvent(new Event('invites-viewed'));
     } catch (err) {
       console.error('Respond error', err);
     }
