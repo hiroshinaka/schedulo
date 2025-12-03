@@ -269,13 +269,15 @@ export default function ChatPage() {
                     ? 'bg-primary/10 border-primary'
                     : 'hover:bg-accent border-transparent'
                 }`}
-              onClick={() => {
+        onClick={() => {
                 setSelectedChat(c);
                 setChats((prev) =>
                   prev.map((chat) =>
                     chat.id === c.id ? { ...chat, unreadCount: 0 } : chat
                   )
                 );
+                // Dispatch event so Header updates message count
+                window.dispatchEvent(new Event('chat-viewed'));
               }}
             >
               <div className="flex items-center justify-between">

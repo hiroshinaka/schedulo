@@ -182,6 +182,19 @@ router.get('/invites', requireSessionUser, async (req, res) => {
     }
 });
 
+// Get count of pending (unread) event invites for current user
+router.get('/unread-invites-count', requireSessionUser, async (req, res) => {
+    try {
+        const uid = String(req.session.user.id || req.session.user.uid || req.session.user.email);
+        const rows = await fetchEventInvitesByUserID(pool, uid, [1]); // status 1 = pending
+        const count = (rows || []).length;
+        return res.json({ ok: true, count });
+    } catch (err) {
+        console.error('GET /api/events/unread-invites-count error', err);
+        res.status(500).json({ ok: false, error: err.message || 'server error' });
+    }
+});
+
 // Find availability for a list of users
 router.post('/availability', requireSessionUser, async (req, res) => {
     try {
