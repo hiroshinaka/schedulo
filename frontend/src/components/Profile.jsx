@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import API_BASE from '../utils/apiBase';
 
 export default function Profile() {
   const { user, loggedIn, refresh } = useAuth();
@@ -32,7 +33,7 @@ export default function Profile() {
 
   const markRequestsAsRead = async () => {
     try {
-      await fetch('/api/profile/mark-requests-read', {
+      await fetch(`${API_BASE}/api/profile/mark-requests-read`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -51,7 +52,7 @@ export default function Profile() {
 
   const loadFriends = async () => {
     try {
-      const res = await fetch('/api/profile/friends', { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/profile/friends`, { credentials: 'include' });
       const data = await res.json();
       if (data.ok) {
         setFriends(data.friends || []);
@@ -63,7 +64,7 @@ export default function Profile() {
 
   const loadFriendRequests = async () => {
     try {
-      const res = await fetch('/api/profile/friend-requests', { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/profile/friend-requests`, { credentials: 'include' });
       const data = await res.json();
       if (data.ok) {
         setPendingRequests(data.pending || []);
@@ -82,7 +83,7 @@ export default function Profile() {
     
     setLoading(true);
     try {
-      const res = await fetch(`/api/profile/search-users?q=${encodeURIComponent(query)}`, { 
+      const res = await fetch(`${API_BASE}/api/profile/search-users?q=${encodeURIComponent(query)}`, { 
         credentials: 'include' 
       });
       const data = await res.json();
@@ -104,7 +105,7 @@ export default function Profile() {
 
   const sendFriendRequest = async (receiverId) => {
     try {
-      const res = await fetch('/api/profile/send-friend-request', {
+      const res = await fetch(`${API_BASE}/api/profile/send-friend-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -127,7 +128,7 @@ export default function Profile() {
 
   const acceptFriendRequest = async (requestId) => {
     try {
-      const res = await fetch('/api/profile/accept-friend-request', {
+      const res = await fetch(`${API_BASE}/api/profile/accept-friend-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -147,7 +148,7 @@ export default function Profile() {
 
   const rejectFriendRequest = async (requestId) => {
     try {
-      const res = await fetch('/api/profile/reject-friend-request', {
+      const res = await fetch(`${API_BASE}/api/profile/reject-friend-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -166,7 +167,7 @@ export default function Profile() {
 
   const cancelFriendRequest = async (requestId) => {
     try {
-      const res = await fetch('/api/profile/cancel-friend-request', {
+      const res = await fetch(`${API_BASE}/api/profile/cancel-friend-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -187,7 +188,7 @@ export default function Profile() {
     if (!window.confirm('Are you sure you want to remove this friend?')) return;
     
     try {
-      const res = await fetch('/api/profile/remove-friend', {
+      const res = await fetch(`${API_BASE}/api/profile/remove-friend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -217,7 +218,7 @@ export default function Profile() {
     form.append('avatar', file);
     (async () => {
       try {
-        const res = await fetch('/api/profile/avatar', {
+        const res = await fetch(`${API_BASE}/api/profile/avatar`, {
           method: 'POST',
           credentials: 'include',
           body: form,
