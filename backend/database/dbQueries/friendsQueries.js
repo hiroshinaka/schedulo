@@ -1,67 +1,119 @@
 let searchFriendsForUser = async (pool, userId, q, limit = 10) => {
   if (!q || !q.trim()) return [];
-  const like = `%${q}%`;
-  const [rows] = await pool.query(
-    `SELECT u.user_id AS id, u.first_name, u.last_name, u.email, u.image_url
-     FROM ` + "`user`" + ` u
-     JOIN friend f ON ((f.friend_1 = ? AND f.friend_2 = u.user_id) OR (f.friend_2 = ? AND f.friend_1 = u.user_id))
-     WHERE (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)
-     LIMIT ?`,
-    [userId, userId, like, like, like, limit]
-  );
-  return rows;
+  try {
+    const like = `%${q}%`;
+    const [rows] = await pool.query(
+      `SELECT u.user_id AS id, u.first_name, u.last_name, u.email, u.image_url
+       FROM ` + "`user`" + ` u
+       JOIN friend f ON ((f.friend_1 = ? AND f.friend_2 = u.user_id) OR (f.friend_2 = ? AND f.friend_1 = u.user_id))
+       WHERE (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)
+       LIMIT ?`,
+      [userId, userId, like, like, like, limit]
+    );
+    return rows;
+  } catch (err) {
+    console.error('searchFriendsForUser query error:', {
+      message: err.message,
+      code: err.code,
+      sql: err.sql,
+      userId: userId,
+      q: q
+    });
+    throw err;
+  }
 };
 
 let searchUsers = async (pool, q, limit = 10, excludeUserId = null) => {
   if (!q || !q.trim()) return [];
-  const like = `%${q}%`;
-  const params = [like, like, like, limit];
-  let sql = `SELECT user_id AS id, first_name, last_name, email, image_url FROM ` + "`user`" + ` WHERE (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?) `;
-  if (excludeUserId) {
-    sql += ` AND user_id != ? `;
-    params.splice(3, 0, excludeUserId);
+  try {
+    const like = `%${q}%`;
+    const params = [like, like, like, limit];
+    let sql = `SELECT user_id AS id, first_name, last_name, email, image_url FROM ` + "`user`" + ` WHERE (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?) `;
+    if (excludeUserId) {
+      sql += ` AND user_id != ? `;
+      params.splice(3, 0, excludeUserId);
+    }
+    sql += ` LIMIT ?`;
+    const [rows] = await pool.query(sql, params);
+    return rows;
+  } catch (err) {
+    console.error('searchUsers query error:', {
+      message: err.message,
+      code: err.code,
+      sql: err.sql,
+      q: q,
+      excludeUserId: excludeUserId
+    });
+    throw err;
   }
-  sql += ` LIMIT ?`;
-  const [rows] = await pool.query(sql, params);
-  return rows;
 };
 
 let getFriends = async (pool, userId) => {
-  const [rows] = await pool.query(
-    `SELECT u.user_id AS id, u.first_name, u.last_name, u.email, u.image_url
-     FROM ` + "`user`" + ` u
-     JOIN friend f ON ((f.friend_1 = ? AND f.friend_2 = u.user_id) OR (f.friend_2 = ? AND f.friend_1 = u.user_id))`,
-    [userId, userId]
-  );
-  return rows;
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.user_id AS id, u.first_name, u.last_name, u.email, u.image_url
+       FROM ` + "`user`" + ` u
+       JOIN friend f ON ((f.friend_1 = ? AND f.friend_2 = u.user_id) OR (f.friend_2 = ? AND f.friend_1 = u.user_id))`,
+      [userId, userId]
+    );
+    return rows;
+  } catch (err) {
+    console.error('getFriends query error:', {
+      message: err.message,
+      code: err.code,
+      sql: err.sql,
+      userId: userId
+    });
+    throw err;
+  }
 };
 
 let getPendingRequests = async (pool, userId) => {
-  const [rows] = await pool.query(
-    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
-            u.first_name, u.last_name, u.email, u.image_url
-     FROM friend_request fr
-     JOIN ` + "`user`" + ` u ON fr.sender_id = u.user_id
-     JOIN friend_request_status frs ON fr.status_id = frs.status_id
-     WHERE fr.receiver_id = ? AND frs.status_name = 'pending'
-     ORDER BY fr.sent_at DESC`,
-    [userId]
-  );
-  return rows;
+  try {
+    const [rows] = await pool.query(
+      `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
+              u.first_name, u.last_name, u.email, u.image_url
+       FROM friend_request fr
+       JOIN ` + "`user`" + ` u ON fr.sender_id = u.user_id
+       JOIN friend_request_status frs ON fr.status_id = frs.status_id
+       WHERE fr.receiver_id = ? AND frs.status_name = 'pending'
+       ORDER BY fr.sent_at DESC`,
+      [userId]
+    );
+    return rows;
+  } catch (err) {
+    console.error('getPendingRequests query error:', {
+      message: err.message,
+      code: err.code,
+      sql: err.sql,
+      userId: userId
+    });
+    throw err;
+  }
 };
 
 let getSentRequests = async (pool, userId) => {
-  const [rows] = await pool.query(
-    `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
-            u.first_name, u.last_name, u.email, u.image_url
-     FROM friend_request fr
-     JOIN ` + "`user`" + ` u ON fr.receiver_id = u.user_id
-     JOIN friend_request_status frs ON fr.status_id = frs.status_id
-     WHERE fr.sender_id = ? AND frs.status_name = 'pending'
-     ORDER BY fr.sent_at DESC`,
-    [userId]
-  );
-  return rows;
+  try {
+    const [rows] = await pool.query(
+      `SELECT fr.request_id, fr.sender_id, fr.receiver_id, frs.status_name as status, fr.sent_at,
+              u.first_name, u.last_name, u.email, u.image_url
+       FROM friend_request fr
+       JOIN ` + "`user`" + ` u ON fr.receiver_id = u.user_id
+       JOIN friend_request_status frs ON fr.status_id = frs.status_id
+       WHERE fr.sender_id = ? AND frs.status_name = 'pending'
+       ORDER BY fr.sent_at DESC`,
+      [userId]
+    );
+    return rows;
+  } catch (err) {
+    console.error('getSentRequests query error:', {
+      message: err.message,
+      code: err.code,
+      sql: err.sql,
+      userId: userId
+    });
+    throw err;
+  }
 };
 
 let createFriendRequest = async (pool, senderId, receiverId) => {
