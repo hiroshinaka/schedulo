@@ -75,14 +75,18 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
+      console.log('[AuthContext.login] /api/login response:', res.status, data);
       if (data && data.ok) {
         // backend doesn't return the user object on login; refresh session to get user
+        console.log('[AuthContext.login] Login successful, calling refresh...');
         const currentUser = await refresh();
+        console.log('[AuthContext.login] refresh returned:', currentUser);
         if (currentUser) {
           return { ok: true, user: currentUser };
         }
         return { ok: true };
       }
+      console.log('[AuthContext.login] Login failed:', data);
       return data || { ok: false };
     } catch (err) {
       console.error('Login failed', err);
