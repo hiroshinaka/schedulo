@@ -103,8 +103,13 @@ router.get('/search-users', requireSessionUser, async (req, res) => {
         const users = await friendsQueries.searchUsers(pool, q, 10, userId);
         return res.json({ ok: true, users });
     } catch (err) {
-        console.error('GET /api/profile/search-users error', err);
-        return res.status(500).json({ ok: false, message: err.message });
+        console.error('GET /api/profile/search-users error', {
+            message: err.message,
+            stack: err.stack,
+            code: err.code,
+            sql: err.sql
+        });
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
@@ -114,8 +119,13 @@ router.get('/friends', requireSessionUser, async (req, res) => {
         const friends = await friendsQueries.getFriends(pool, userId);
         return res.json({ ok: true, friends });
     } catch (err) {
-        console.error('GET /api/profile/friends error', err);
-        return res.status(500).json({ ok: false, message: err.message });
+        console.error('GET /api/profile/friends error', {
+            message: err.message,
+            stack: err.stack,
+            code: err.code,
+            sql: err.sql
+        });
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
@@ -126,8 +136,13 @@ router.get('/friend-requests', requireSessionUser, async (req, res) => {
         const sent = await friendsQueries.getSentRequests(pool, userId);
         return res.json({ ok: true, pending, sent });
     } catch (err) {
-        console.error('GET /api/profile/friend-requests error', err);
-        return res.status(500).json({ ok: false, message: err.message });
+        console.error('GET /api/profile/friend-requests error', {
+            message: err.message,
+            stack: err.stack,
+            code: err.code,
+            sql: err.sql
+        });
+        return res.status(500).json({ ok: false, error: err.message });
     }
 });
 
