@@ -5,8 +5,8 @@ const session = require('express-session');
 const path = require('path');
 const apiRouter = require('./routes/api.js');
 //Database connections
-const {database} = include('database/sqlConnections.js');
-const dbUtils = include('database/db_utils.js');
+const pool = require('./database/sqlConnections.js');
+const dbUtils = require('./database/db_utils.js');
 const success = dbUtils.printMySQLVersion();
 const cors = require('cors');
 const mongoStore = require('./database/mongoStoreConnection.js');
@@ -98,12 +98,42 @@ app.get('/api/test-session', (req, res) => {
   });
 });
 
-app.use((req, res) => {
-    res.status(404).send('404 Not Found');
+// Database health check endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT 1 as test');
+    return res.json({ ok: true, database: 'connected', rows });
+  } catch (err) {
+    console.error('Database health check failed:', err);
+    return res.status(500).json({ 
+      ok: false, 
+      database: 'failed',
+      error: err.message,
+      code: err.code,
+      host: process.env.MYSQL_HOST,
+      database: process.env.MYSQL_DATABASE
+    });
+  }
 });
 
+// Global error handler (must be after all other middleware)
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', {
+        message: err.message,
+        stack: err.stack,
+        code: err.code,
+        sql: err.sql
+    });
+    return res.status(500).json({ 
+        ok: false, 
+        error: err.message || 'Internal server error'
+    });
+});
 
-
+// 404 handler (must be after all routes and error handler)
+app.use((req, res) => {
+    res.status(404).json({ ok: false, error: 'Not found' });
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

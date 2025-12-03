@@ -21,7 +21,12 @@ router.get('/search', requireSessionUser, async (req, res) => {
     }
     return res.json({ friends: rows });
   } catch (err) {
-    console.error('GET /api/friends/search error', err);
+    console.error('GET /api/friends/search error', {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+      sql: err.sql
+    });
     res.status(500).json({ error: err.message || 'server error' });
   }
 });
