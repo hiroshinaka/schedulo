@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../database/sqlConnections.js');
+
+let pool;
+try {
+  pool = require('../database/sqlConnections.js');
+} catch (err) {
+  console.error('ERROR: Failed to load database pool in friends.js:', err.message);
+  throw err;
+}
+
 const friendsQueries = require('../database/dbQueries/friendsQueries.js');
 
 function requireSessionUser(req, res, next) {

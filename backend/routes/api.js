@@ -1,6 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../database/sqlConnections.js')
+
+let pool;
+try {
+  pool = require('../database/sqlConnections.js');
+  if (!pool) {
+    console.error('ERROR: pool is not defined or is null');
+    throw new Error('Database pool initialization failed');
+  }
+  if (!pool.query) {
+    console.error('ERROR: pool.query is not a function');
+    throw new Error('Database pool does not have query method');
+  }
+  console.log('Database pool loaded successfully in api.js');
+} catch (err) {
+  console.error('FATAL: Failed to load database pool in api.js:', err.message);
+  console.error(err.stack);
+  throw err;
+}
+
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6*1024*1024 } });
@@ -9,10 +27,36 @@ const joi = require('joi');
 const { ok } = require('assert');
 const saltRounds = 10;
 const initFirebaseAdmin = require('../database/firebaseAdmin');
-const chatRouter = require('./chat');
-const eventsRouter = require('./events');
-const friendsRouter = require('./friends');
-const profileRouter = require('./profile');
+
+let chatRouter, eventsRouter, friendsRouter, profileRouter;
+try {
+  chatRouter = require('./chat');
+  console.log('Chat router loaded successfully');
+} catch (err) {
+  console.error('ERROR loading chat router:', err.message);
+  throw err;
+}
+try {
+  eventsRouter = require('./events');
+  console.log('Events router loaded successfully');
+} catch (err) {
+  console.error('ERROR loading events router:', err.message);
+  throw err;
+}
+try {
+  friendsRouter = require('./friends');
+  console.log('Friends router loaded successfully');
+} catch (err) {
+  console.error('ERROR loading friends router:', err.message);
+  throw err;
+}
+try {
+  profileRouter = require('./profile');
+  console.log('Profile router loaded successfully');
+} catch (err) {
+  console.error('ERROR loading profile router:', err.message);
+  throw err;
+}
 
 //Database Queries imports
 const { createUser, getUserByEmail } = require('../database/dbQueries/userQueries.js');
